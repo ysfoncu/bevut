@@ -453,6 +453,26 @@ export default function App() {
         {/* Main Content */}
         <main className="flex-1 overflow-auto bg-gray-50 relative">
           <div className="px-8 py-8">
+            {activeRole === "supervisor" && !readingMode && (() => {
+              const midtermItems = [personnummerFilled, akutmottagningFilled, !!selectedAssessment, !!selectedAssessment2, !!selectedAssessment3, !!selectedAssessment4, datumFilled, isSigned];
+              const endtermItems = [personnummerFilled, akutmottagningFilled, !!selectedAssessmentEnd, !!selectedAssessment2End, !!selectedAssessment3End, !!selectedAssessment4End, datumFilledEnd, fungeratBraEndFilled, isSignedEnd];
+              const items = activeTerm === "midterm" ? midtermItems : endtermItems;
+              const completed = items.filter(Boolean).length;
+              const total = items.length;
+              const pct = Math.round((completed / total) * 100);
+              const color = pct === 100 ? "bg-green-500" : pct >= 50 ? "bg-purple-500" : "bg-red-400";
+              return (
+                <div className="mb-6 max-w-5xl mx-auto">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-medium text-gray-600">Form completion</span>
+                    <span className="text-xs font-semibold text-gray-700">{completed}/{total} — {pct}%</span>
+                  </div>
+                  <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full transition-all duration-300 ${color}`} style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              );
+            })()}
             {(activeRole === "student" || activeRole === "teacher") && !isSigned && (
               <div className="mb-3 p-4 bg-yellow-50 border border-yellow-300 rounded-lg flex items-center gap-3 max-w-5xl mx-auto">
                 <svg className="w-5 h-5 text-yellow-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">

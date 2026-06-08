@@ -169,8 +169,8 @@ export default function App() {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const rsIcon = (filled: boolean, mandatory: boolean) => {
-    if (activeRole !== "supervisor") return null;
+  const rsIcon = (filled: boolean, mandatory: boolean, showForTeacher = false) => {
+    if (activeRole !== "supervisor" && !(activeRole === "teacher" && showForTeacher)) return null;
     if (filled) return (
       <svg className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -191,9 +191,10 @@ export default function App() {
 
   const renderSidebarBadge = (
     type: "regular" | "signering",
-    status?: { mandatoryCount: number; optionalCount: number; totalCount: number }
+    status?: { mandatoryCount: number; optionalCount: number; totalCount: number },
+    editableForTeacher = false
   ) => {
-    if (activeRole === "teacher") {
+    if (activeRole === "teacher" && !editableForTeacher) {
       return (
         <div className="w-8 h-8 rounded bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
           <Eye className="w-4 h-4 text-gray-500" />
@@ -382,7 +383,7 @@ export default function App() {
                       : "text-gray-700 hover:bg-gray-100"
                   } ${activeRole === "supervisor" && showValidationErrors && (!personnummerFilled || !akutmottagningFilled) ? "border-2 border-red-500" : ""}`}
                 >
-                  {!readingMode && renderSidebarBadge("regular", getPraksisinformasjonStatus())}
+                  {!readingMode && renderSidebarBadge("regular", getPraksisinformasjonStatus(), true)}
                   <span className="text-left">Praksisinformasjon</span>
                 </button>
               </li>
@@ -395,7 +396,7 @@ export default function App() {
                       : "text-gray-700 hover:bg-gray-100"
                   }`}
                 >
-                  {!readingMode && renderSidebarBadge("regular", getPlaneringStatus())}
+                  {!readingMode && renderSidebarBadge("regular", getPlaneringStatus(), true)}
                   <span className="text-left">Planering</span>
                 </button>
               </li>
@@ -713,8 +714,8 @@ export default function App() {
                       type="text"
                       id="studentName"
                       defaultValue="Anna Andersson"
-                      readOnly={activeRole !== "supervisor"}
-                      className={`w-full px-4 py-2 rounded-lg text-sm ${activeRole !== "supervisor" ? "bg-gray-50 cursor-default" : "focus:outline-none focus:ring-2 focus:ring-purple-500"}`}
+                      readOnly={activeRole === "student"}
+                      className={`w-full px-4 py-2 rounded-lg text-sm ${activeRole === "student" ? "bg-gray-50 cursor-default" : "focus:outline-none focus:ring-2 focus:ring-purple-500"}`}
                     />
                   </div>
 
@@ -727,12 +728,12 @@ export default function App() {
                       id="personnummer"
                       placeholder="YYYYMMDD-XXXX"
                       value={personnummer}
-                      readOnly={activeRole !== "supervisor"}
+                      readOnly={activeRole === "student"}
                       onChange={(e) => {
                         setPersonnummer(e.target.value);
                         setPersonnummerFilled(!!e.target.value);
                       }}
-                      className={`w-full px-4 py-2 border rounded-lg text-sm ${activeRole !== "supervisor" ? "bg-gray-50 cursor-default border-gray-200" : `focus:outline-none focus:ring-2 focus:ring-purple-500 ${showValidationErrors && !personnummerFilled ? "border-red-500 border-2" : "border-gray-300"}`}`}
+                      className={`w-full px-4 py-2 border rounded-lg text-sm ${activeRole === "student" ? "bg-gray-50 cursor-default border-gray-200" : `focus:outline-none focus:ring-2 focus:ring-purple-500 ${showValidationErrors && !personnummerFilled ? "border-red-500 border-2" : "border-gray-300"}`}`}
                     />
                   </div>
 
@@ -745,12 +746,12 @@ export default function App() {
                       id="akutmottagning"
                       placeholder="Enter location"
                       value={akutmottagning}
-                      readOnly={activeRole !== "supervisor"}
+                      readOnly={activeRole === "student"}
                       onChange={(e) => {
                         setAkutmottagning(e.target.value);
                         setAkutmottagningFilled(!!e.target.value);
                       }}
-                      className={`w-full px-4 py-2 border rounded-lg text-sm ${activeRole !== "supervisor" ? "bg-gray-50 cursor-default border-gray-200" : `focus:outline-none focus:ring-2 focus:ring-purple-500 ${showValidationErrors && !akutmottagningFilled ? "border-red-500 border-2" : "border-gray-300"}`}`}
+                      className={`w-full px-4 py-2 border rounded-lg text-sm ${activeRole === "student" ? "bg-gray-50 cursor-default border-gray-200" : `focus:outline-none focus:ring-2 focus:ring-purple-500 ${showValidationErrors && !akutmottagningFilled ? "border-red-500 border-2" : "border-gray-300"}`}`}
                     />
                   </div>
                 </form>
@@ -809,8 +810,8 @@ export default function App() {
                       type="text"
                       id="genomforandeperiod"
                       defaultValue="2026-04-01 - 2026-06-01"
-                      readOnly={activeRole !== "supervisor"}
-                      className={`w-full px-4 py-2 rounded-lg text-sm ${activeRole !== "supervisor" ? "bg-gray-50 cursor-default" : "focus:outline-none focus:ring-2 focus:ring-purple-500"}`}
+                      readOnly={activeRole === "student"}
+                      className={`w-full px-4 py-2 rounded-lg text-sm ${activeRole === "student" ? "bg-gray-50 cursor-default" : "focus:outline-none focus:ring-2 focus:ring-purple-500"}`}
                     />
                   </div>
 
@@ -822,9 +823,9 @@ export default function App() {
                       type="date"
                       id="malformuleringssamtal"
                       value={malformuleringssamtal}
-                      readOnly={activeRole !== "supervisor"}
+                      readOnly={activeRole === "student"}
                       onChange={(e) => setMalformuleringssamtal(e.target.value)}
-                      className={`w-full px-4 py-2 border rounded-lg text-sm ${activeRole !== "supervisor" ? "bg-gray-50 cursor-default border-gray-200" : "border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"}`}
+                      className={`w-full px-4 py-2 border rounded-lg text-sm ${activeRole === "student" ? "bg-gray-50 cursor-default border-gray-200" : "border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"}`}
                     />
                   </div>
 
@@ -836,9 +837,9 @@ export default function App() {
                       type="date"
                       id="halvtidsbedomning"
                       value={halvtidsbedomning}
-                      readOnly={activeRole !== "supervisor"}
+                      readOnly={activeRole === "student"}
                       onChange={(e) => setHalvtidsbedomning(e.target.value)}
-                      className={`w-full px-4 py-2 border rounded-lg text-sm ${activeRole !== "supervisor" ? "bg-gray-50 cursor-default border-gray-200" : "border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"}`}
+                      className={`w-full px-4 py-2 border rounded-lg text-sm ${activeRole === "student" ? "bg-gray-50 cursor-default border-gray-200" : "border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"}`}
                     />
                   </div>
 
@@ -850,9 +851,9 @@ export default function App() {
                       type="date"
                       id="slutbedomning"
                       value={slutbedomning}
-                      readOnly={activeRole !== "supervisor"}
+                      readOnly={activeRole === "student"}
                       onChange={(e) => setSlutbedomning(e.target.value)}
-                      className={`w-full px-4 py-2 border rounded-lg text-sm ${activeRole !== "supervisor" ? "bg-gray-50 cursor-default border-gray-200" : "border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"}`}
+                      className={`w-full px-4 py-2 border rounded-lg text-sm ${activeRole === "student" ? "bg-gray-50 cursor-default border-gray-200" : "border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"}`}
                     />
                   </div>
                 </form>
@@ -1232,13 +1233,13 @@ export default function App() {
           {activeSection === "praksisinformasjon" ? (
             <div className="space-y-3">
               <a href="#" onClick={scrollTo("personnummer")} className="flex items-start gap-2 group">
-                {rsIcon(personnummerFilled, true)}
+                {rsIcon(personnummerFilled, true, true)}
                 <span className="text-sm text-blue-600 group-hover:underline">
                   Studentens personnummer
                 </span>
               </a>
               <a href="#" onClick={scrollTo("akutmottagning")} className="flex items-start gap-2 group">
-                {rsIcon(akutmottagningFilled, true)}
+                {rsIcon(akutmottagningFilled, true, true)}
                 <span className="text-sm text-blue-600 group-hover:underline">
                   Akutmottagning
                 </span>
@@ -1247,19 +1248,19 @@ export default function App() {
           ) : activeSection === "planering" ? (
             <div className="space-y-3">
               <a href="#" onClick={scrollTo("malformuleringssamtal")} className="flex items-start gap-2 group">
-                {rsIcon(!!malformuleringssamtal, false)}
+                {rsIcon(!!malformuleringssamtal, false, true)}
                 <span className="text-sm text-blue-600 group-hover:underline">
                   Datum för målformuleringssamtal
                 </span>
               </a>
               <a href="#" onClick={scrollTo("halvtidsbedomning")} className="flex items-start gap-2 group">
-                {rsIcon(!!halvtidsbedomning, false)}
+                {rsIcon(!!halvtidsbedomning, false, true)}
                 <span className="text-sm text-blue-600 group-hover:underline">
                   Datum för halvtidsbedömning
                 </span>
               </a>
               <a href="#" onClick={scrollTo("slutbedomning")} className="flex items-start gap-2 group">
-                {rsIcon(!!slutbedomning, false)}
+                {rsIcon(!!slutbedomning, false, true)}
                 <span className="text-sm text-blue-600 group-hover:underline">
                   Datum för slutbedömning
                 </span>

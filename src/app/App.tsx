@@ -5,7 +5,7 @@ import {
   Clock,
   Eye,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AssessmentQuestion } from "./components/AssessmentQuestion";
 import { AssessmentSummary } from "./components/AssessmentSummary";
 
@@ -38,6 +38,10 @@ export default function App() {
   const [fungeratBraEnd, setFungeratBraEnd] = useState("");
   const [fungeratBraEndFilled, setFungeratBraEndFilled] = useState(false);
   const [tranaMerEnd, setTranaMerEnd] = useState("");
+  const [franvaroDagar, setFranvaroDagar] = useState("");
+  const [franvaroKI, setFranvaroKI] = useState(false);
+  const [franvaroSjukdom, setFranvaroSjukdom] = useState(false);
+  const [franvaroAnnat, setFranvaroAnnat] = useState(false);
 
   // Shared states
   const [personnummerFilled, setPersonnummerFilled] = useState(false);
@@ -50,6 +54,18 @@ export default function App() {
   const [showValidationErrors, setShowValidationErrors] = useState(false);
   const [isStudentSigned, setIsStudentSigned] = useState(false);
   const [isStudentSignedEnd, setIsStudentSignedEnd] = useState(false);
+  const [isTeacherSigned, setIsTeacherSigned] = useState(false);
+  const [isTeacherSignedEnd, setIsTeacherSignedEnd] = useState(false);
+  const [showEndtermPopup, setShowEndtermPopup] = useState(false);
+
+  // When both student and teacher have signed the midterm, open the endterm form automatically
+  useEffect(() => {
+    if (isStudentSigned && isTeacherSigned) {
+      setEndtermCreated(true);
+      setActiveTerm("endterm");
+      setShowEndtermPopup(true);
+    }
+  }, [isStudentSigned, isTeacherSigned]);
 
   const validateAllFields = () => {
     const errors = [];
@@ -94,14 +110,6 @@ export default function App() {
 
     if (!personnummerFilled) mandatoryCount++;
     if (!akutmottagningFilled) mandatoryCount++;
-
-    const totalCount = mandatoryCount + optionalCount;
-    return { mandatoryCount, optionalCount, totalCount };
-  };
-
-  const getPlaneringStatus = () => {
-    let mandatoryCount = 0;
-    let optionalCount = 0;
 
     if (!malformuleringssamtal) optionalCount++;
     if (!halvtidsbedomning) optionalCount++;
@@ -163,6 +171,9 @@ export default function App() {
   };
 
   const supervisorSignedNow = activeTerm === "midterm" ? isSigned : isSignedEnd;
+  const mandatoryComplete = validateAllFields().length === 0;
+  // Disable the sign button only in reading mode; the signering page keeps its original always-active button.
+  const signDisabled = readingMode && !mandatoryComplete;
 
   const scrollTo = (id: string) => (e: React.MouseEvent) => {
     e.preventDefault();
@@ -188,12 +199,39 @@ export default function App() {
     );
   };
   const studentSignedNow = activeTerm === "midterm" ? isStudentSigned : isStudentSignedEnd;
+  const teacherSignedNow = activeTerm === "midterm" ? isTeacherSigned : isTeacherSignedEnd;
+  const currentRoleSigned =
+    activeRole === "supervisor" ? supervisorSignedNow : activeRole === "student" ? studentSignedNow : teacherSignedNow;
 
   const renderSidebarBadge = (
     type: "regular" | "signering",
     status?: { mandatoryCount: number; optionalCount: number; totalCount: number },
     editableForTeacher = false
   ) => {
+    if (type === "signering" && (activeRole === "student" || activeRole === "teacher")) {
+      const mySigned = activeRole === "student" ? studentSignedNow : teacherSignedNow;
+      if (!supervisorSignedNow) {
+        return (
+          <div className="w-8 h-8 rounded bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
+            <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+        );
+      }
+      if (!mySigned) {
+        return (
+          <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0 bg-red-500">
+            <span className="text-white font-bold text-sm">1</span>
+          </div>
+        );
+      }
+      return (
+        <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0 bg-green-500">
+          <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+        </div>
+      );
+    }
     if (activeRole === "teacher" && !editableForTeacher) {
       return (
         <div className="w-8 h-8 rounded bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
@@ -202,29 +240,6 @@ export default function App() {
       );
     }
     if (activeRole === "student") {
-      if (type === "signering") {
-        if (!supervisorSignedNow) {
-          return (
-            <div className="w-8 h-8 rounded bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
-              <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          );
-        }
-        if (!studentSignedNow) {
-          return (
-            <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0 bg-red-500">
-              <span className="text-white font-bold text-sm">1</span>
-            </div>
-          );
-        }
-        return (
-          <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0 bg-green-500">
-            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-          </div>
-        );
-      }
       return (
         <div className="w-8 h-8 rounded bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
           <Eye className="w-4 h-4 text-gray-500" />
@@ -269,11 +284,33 @@ export default function App() {
 
   return (
     <div className="size-full flex flex-col bg-gray-50">
+      {/* Endterm-created demo popup */}
+      {showEndtermPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">Explanation for demo</h2>
+            <p className="text-sm text-gray-700 mb-6">
+              Halvtidsbedömningen är ifylld och slutbedömningen skapas. När du stänger den här dialogrutan kommer du att navigeras till slutbedömningen.
+            </p>
+            <div className="flex justify-end">
+              <button
+                onClick={() => {
+                  setShowEndtermPopup(false);
+                  setActiveSection("bedomningskriterier");
+                }}
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-500 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-500 rounded-lg flex items-center justify-center">
               <div className="w-4 h-4 bg-white rounded-sm transform rotate-45"></div>
             </div>
             <span className="text-xl font-semibold text-gray-900">
@@ -289,7 +326,7 @@ export default function App() {
               onClick={() => { setActiveRole(role); setActiveSection("praksisinformasjon"); setShowValidationErrors(false); }}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors capitalize ${
                 activeRole === role
-                  ? "bg-purple-600 text-white"
+                  ? "bg-blue-600 text-white"
                   : "border border-gray-300 text-gray-700 hover:bg-gray-50"
               }`}
             >
@@ -321,7 +358,7 @@ export default function App() {
                     : "text-gray-500"
                 }`}
               >
-                Midterm
+                Halvtidsbedömning
               </button>
               {endtermCreated && (
                 <button
@@ -335,7 +372,7 @@ export default function App() {
                       : "text-gray-500"
                   }`}
                 >
-                  Endterm
+                  Slutbedömning
                 </button>
               )}
             </div>
@@ -343,12 +380,12 @@ export default function App() {
               onClick={() => setReadingMode(!readingMode)}
               className={`ml-auto flex items-center gap-2 px-4 py-2 text-sm rounded-lg border transition-colors ${
                 readingMode
-                  ? "bg-purple-600 text-white border-purple-600 hover:bg-purple-700"
+                  ? "bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
                   : "text-gray-700 border-gray-300 hover:bg-gray-50"
               }`}
             >
               <Eye className="w-4 h-4" />
-              Reading Mode
+              Förhandsvisning
             </button>
           </div>
         </div>
@@ -364,7 +401,7 @@ export default function App() {
           {/* Student Profile */}
           <div className="p-4 border-b border-gray-200">
             <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center text-white text-xl font-semibold mb-3">
+              <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white text-xl font-semibold mb-3">
                 AA
               </div>
               <p className="text-sm font-semibold text-gray-900">Anna Andersson</p>
@@ -384,20 +421,7 @@ export default function App() {
                   } ${activeRole === "supervisor" && showValidationErrors && (!personnummerFilled || !akutmottagningFilled) ? "border-2 border-red-500" : ""}`}
                 >
                   {!readingMode && renderSidebarBadge("regular", getPraksisinformasjonStatus(), true)}
-                  <span className="text-left">Praksisinformasjon</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => setActiveSection("planering")}
-                  className={`w-full flex items-start gap-3 px-3 py-2 text-sm rounded-lg ${
-                    activeSection === "planering"
-                      ? "text-gray-900 bg-gray-100 font-medium"
-                      : "text-gray-700 hover:bg-gray-100"
-                  }`}
-                >
-                  {!readingMode && renderSidebarBadge("regular", getPlaneringStatus(), true)}
-                  <span className="text-left">Planering</span>
+                  <span className="text-left">VFU-Information</span>
                 </button>
               </li>
               <li>
@@ -423,7 +447,7 @@ export default function App() {
                   } ${activeRole === "supervisor" && showValidationErrors && ((activeTerm === "midterm" && !datumFilled) || (activeTerm === "endterm" && !datumFilledEnd)) ? "border-2 border-red-500" : ""}`}
                 >
                   {!readingMode && renderSidebarBadge("regular", getOppsumeringStatus())}
-                  <span className="text-left">Oppsumering</span>
+                  <span className="text-left">Sammanfattning</span>
                 </button>
               </li>
               <li>
@@ -437,18 +461,20 @@ export default function App() {
                 >
                   {!readingMode && renderSidebarBadge("signering")}
                   <span className="text-left">
-                    {activeTerm === "midterm" ? "Signering av midterm" : "Signering av sluttvurdering"}
+                    {activeTerm === "midterm" ? "Signering av halvtidsbedömning" : "Signering av slutbedömning"}
                   </span>
                 </button>
               </li>
             </ul>
-          </nav>
 
-          <div className="p-4 border-t border-gray-200">
-            <button className="w-full px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
-              Avbryt vurderingsprosess
-            </button>
-          </div>
+            {activeRole !== "student" && (
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <button className="w-full px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
+                  Avbryt vurderingsprosess
+                </button>
+              </div>
+            )}
+          </nav>
         </aside>
 
         {/* Main Content */}
@@ -461,7 +487,7 @@ export default function App() {
               const completed = items.filter(Boolean).length;
               const total = items.length;
               const pct = Math.round((completed / total) * 100);
-              const color = pct === 100 ? "bg-green-500" : pct >= 50 ? "bg-purple-500" : "bg-red-400";
+              const color = pct === 100 ? "bg-green-500" : pct >= 50 ? "bg-blue-500" : "bg-red-400";
               return (
                 <div className="mb-6 max-w-5xl mx-auto">
                   <div className="flex items-center justify-between mb-1.5">
@@ -479,7 +505,7 @@ export default function App() {
                 <svg className="w-5 h-5 text-yellow-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
-                <p className="text-sm text-yellow-800"><span className="font-semibold">Midterm</span> not signed by supervisor — you cannot see the midterm gradings and cannot sign the form yet.</p>
+                <p className="text-sm text-yellow-800"><span className="font-semibold">Halvtidsbedömning</span> not signed by supervisor — you cannot see the Halvtidsbedömning gradings and cannot sign the form yet.</p>
               </div>
             )}
             {(activeRole === "student" || activeRole === "teacher") && endtermCreated && !isSignedEnd && activeTerm !== "midterm" && (
@@ -487,7 +513,7 @@ export default function App() {
                 <svg className="w-5 h-5 text-yellow-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
-                <p className="text-sm text-yellow-800"><span className="font-semibold">Endterm</span> not signed by supervisor — you cannot see the endterm gradings and cannot sign the form yet.</p>
+                <p className="text-sm text-yellow-800"><span className="font-semibold">Slutbedömning</span> not signed by supervisor — you cannot see the Slutbedömning gradings and cannot sign the form yet.</p>
               </div>
             )}
             {activeRole === "student" && isSigned && !isStudentSigned && (
@@ -495,7 +521,7 @@ export default function App() {
                 <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                 </svg>
-                <p className="text-sm text-blue-800"><span className="font-semibold">Midterm:</span> Please review and sign the form. If not signed within <span className="font-semibold">48 hours</span>, the form will be signed automatically on your behalf.</p>
+                <p className="text-sm text-blue-800"><span className="font-semibold">Halvtidsbedömning:</span> Please review and sign the form. If not signed within <span className="font-semibold">48 hours</span>, the form will be signed automatically on your behalf.</p>
               </div>
             )}
             {activeRole === "student" && isSignedEnd && !isStudentSignedEnd && (
@@ -503,7 +529,23 @@ export default function App() {
                 <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                 </svg>
-                <p className="text-sm text-blue-800"><span className="font-semibold">Endterm:</span> Please review and sign the form. If not signed within <span className="font-semibold">48 hours</span>, the form will be signed automatically on your behalf.</p>
+                <p className="text-sm text-blue-800"><span className="font-semibold">Slutbedömning:</span> Please review and sign the form. If not signed within <span className="font-semibold">48 hours</span>, the form will be signed automatically on your behalf.</p>
+              </div>
+            )}
+            {activeRole === "teacher" && isSigned && !isTeacherSigned && (
+              <div className="mb-3 p-4 bg-blue-50 border border-blue-300 rounded-lg flex items-start gap-3 max-w-5xl mx-auto">
+                <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                <p className="text-sm text-blue-800"><span className="font-semibold">Halvtidsbedömning:</span> Please review and sign the form. If not signed within <span className="font-semibold">48 hours</span>, the form will be signed automatically on your behalf.</p>
+              </div>
+            )}
+            {activeRole === "teacher" && isSignedEnd && !isTeacherSignedEnd && (
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-300 rounded-lg flex items-start gap-3 max-w-5xl mx-auto">
+                <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                <p className="text-sm text-blue-800"><span className="font-semibold">Slutbedömning:</span> Please review and sign the form. If not signed within <span className="font-semibold">48 hours</span>, the form will be signed automatically on your behalf.</p>
               </div>
             )}
             {readingMode ? (
@@ -543,6 +585,10 @@ export default function App() {
                   <h2 className="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b-2 border-gray-300">
                     Bedömningskriterier Akutsjukvård
                   </h2>
+
+                  <p className="text-sm text-gray-700 mb-4">
+                    Halvtidsbedömning : <span className="font-semibold">O</span>, Slutbedömning : <span className="font-semibold">X</span>
+                  </p>
 
                   <div className="overflow-x-auto">
                     <table className="w-full border-collapse border border-gray-300">
@@ -640,11 +686,20 @@ export default function App() {
                     {isSigned ? (
                       <div>
                         <p className="font-semibold mb-2">Handledare:</p>
-                        <p>Viktor Torvaldsson - Supervisor</p>
+                        <p>Viktor Torvaldsson - Handledare</p>
                         <p>Datum: 2026-06-05</p>
                       </div>
                     ) : (
                       <p className="text-gray-600 italic">Ej signerad av handledare</p>
+                    )}
+                    {isTeacherSigned ? (
+                      <div>
+                        <p className="font-semibold mb-2">KI-representant:</p>
+                        <p>Lena Karlsson - KI-representant</p>
+                        <p>Datum: 2026-06-05</p>
+                      </div>
+                    ) : (
+                      <p className="text-gray-600 italic">Ej signerad av KI-representant</p>
                     )}
                     {isStudentSigned ? (
                       <div>
@@ -665,6 +720,14 @@ export default function App() {
                   <h2 className="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b-2 border-gray-300">Slutbedömning</h2>
                   <div className="space-y-4 text-sm">
                     <p><span className="font-semibold">Datum:</span> {datumEnd || "_______________"}</p>
+                    <p>
+                      <span className="font-semibold">Frånvaro:</span> {franvaroDagar || "_______"} dagar{" "}
+                      {[
+                        franvaroKI && "Av KI sanktionerad uppgift",
+                        franvaroSjukdom && "Sjukdom",
+                        franvaroAnnat && "Annat",
+                      ].filter(Boolean).join(", ") || "—"}
+                    </p>
                     <div>
                       <p className="font-semibold mb-2">Eventuella kommentarer utöver det som framgår av Bedömningskriterierna:</p>
                       <p className="whitespace-pre-wrap">{fungeratBraEnd || "_______________"}</p>
@@ -677,15 +740,35 @@ export default function App() {
                 {(activeRole === "supervisor" || isSignedEnd) ? (
                 <div id="rm-signering-slut">
                   <h2 className="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b-2 border-gray-300">Signering av slutbedömning</h2>
-                  {isSignedEnd ? (
-                    <div className="text-sm">
-                      <p className="font-semibold mb-2">Signerad av:</p>
-                      <p>Viktor Torvaldsson - Supervisor</p>
-                      <p>Datum: 2026-06-05</p>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-600 italic">Ej signerad</p>
-                  )}
+                  <div className="space-y-4 text-sm">
+                    {isSignedEnd ? (
+                      <div>
+                        <p className="font-semibold mb-2">Handledare:</p>
+                        <p>Viktor Torvaldsson - Handledare</p>
+                        <p>Datum: 2026-06-05</p>
+                      </div>
+                    ) : (
+                      <p className="text-gray-600 italic">Ej signerad av handledare</p>
+                    )}
+                    {isTeacherSignedEnd ? (
+                      <div>
+                        <p className="font-semibold mb-2">KI-representant:</p>
+                        <p>Lena Karlsson - KI-representant</p>
+                        <p>Datum: 2026-06-05</p>
+                      </div>
+                    ) : (
+                      <p className="text-gray-600 italic">Ej signerad av KI-representant</p>
+                    )}
+                    {isStudentSignedEnd ? (
+                      <div>
+                        <p className="font-semibold mb-2">Student:</p>
+                        <p>Anna Andersson</p>
+                        <p>Datum: 2026-06-05</p>
+                      </div>
+                    ) : (
+                      <p className="text-gray-600 italic">Ej signerad av student</p>
+                    )}
+                  </div>
                 </div>
                 ) : null}
               </div>
@@ -694,7 +777,7 @@ export default function App() {
               {activeSection === "praksisinformasjon" ? (
               /* Praksisinformasjon Form */
               <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-8">
-                <h1 className="text-2xl font-bold text-gray-900 mb-6">Praksisinformasjon</h1>
+                <h1 className="text-2xl font-bold text-gray-900 mb-6 pb-2 border-b-2 border-gray-300">VFU-Information</h1>
 
                 <div className="mb-6 space-y-1">
                   <p className="text-sm text-gray-900">
@@ -715,7 +798,7 @@ export default function App() {
                       id="studentName"
                       defaultValue="Anna Andersson"
                       readOnly={activeRole === "student"}
-                      className={`w-full px-4 py-2 rounded-lg text-sm ${activeRole === "student" ? "bg-gray-50 cursor-default" : "focus:outline-none focus:ring-2 focus:ring-purple-500"}`}
+                      className={`w-full px-4 py-2 rounded-lg text-sm ${activeRole === "student" ? "bg-gray-50 cursor-default" : "focus:outline-none focus:ring-2 focus:ring-blue-500"}`}
                     />
                   </div>
 
@@ -733,13 +816,13 @@ export default function App() {
                         setPersonnummer(e.target.value);
                         setPersonnummerFilled(!!e.target.value);
                       }}
-                      className={`w-full px-4 py-2 border rounded-lg text-sm ${activeRole === "student" ? "bg-gray-50 cursor-default border-gray-200" : `focus:outline-none focus:ring-2 focus:ring-purple-500 ${showValidationErrors && !personnummerFilled ? "border-red-500 border-2" : "border-gray-300"}`}`}
+                      className={`w-full px-4 py-2 border rounded-lg text-sm ${activeRole === "student" ? "bg-gray-50 cursor-default border-gray-200" : `focus:outline-none focus:ring-2 focus:ring-blue-500 ${showValidationErrors && !personnummerFilled ? "border-red-500 border-2" : "border-gray-300"}`}`}
                     />
                   </div>
 
                   <div>
                     <label htmlFor="akutmottagning" className="block text-sm font-medium text-gray-900 mb-2">
-                      Akutmottagning:<span className="text-red-600 ml-1">*</span>
+                      Vårdavdelning/enhet:<span className="text-red-600 ml-1">*</span>
                     </label>
                     <input
                       type="text"
@@ -751,57 +834,14 @@ export default function App() {
                         setAkutmottagning(e.target.value);
                         setAkutmottagningFilled(!!e.target.value);
                       }}
-                      className={`w-full px-4 py-2 border rounded-lg text-sm ${activeRole === "student" ? "bg-gray-50 cursor-default border-gray-200" : `focus:outline-none focus:ring-2 focus:ring-purple-500 ${showValidationErrors && !akutmottagningFilled ? "border-red-500 border-2" : "border-gray-300"}`}`}
+                      className={`w-full px-4 py-2 border rounded-lg text-sm ${activeRole === "student" ? "bg-gray-50 cursor-default border-gray-200" : `focus:outline-none focus:ring-2 focus:ring-blue-500 ${showValidationErrors && !akutmottagningFilled ? "border-red-500 border-2" : "border-gray-300"}`}`}
                     />
                   </div>
                 </form>
 
-                {/* Form status legend */}
-                <div className="mt-8 pt-6 border-t border-gray-200 space-y-6">
-                  {endtermCreated && (
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900 mb-3">Endterm</p>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Created</span>
-                          <span className="text-gray-900">2026-06-05</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Signed by supervisor</span>
-                          {isSignedEnd ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Not signed yet</span>}
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Signed by student</span>
-                          {isStudentSignedEnd ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Not signed yet</span>}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900 mb-3">Midterm</p>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Created</span>
-                        <span className="text-gray-900">2026-04-01</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Signed by supervisor</span>
-                        {isSigned ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Not signed yet</span>}
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Signed by student</span>
-                        {isStudentSigned ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Not signed yet</span>}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : activeSection === "planering" ? (
-              /* Planering Form */
-              <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-8">
-                <h1 className="text-2xl font-bold text-gray-900 mb-6">Planering</h1>
+                <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4 pb-2 border-b-2 border-gray-300">Planering</h2>
 
-                <form className="space-y-6 mb-8">
+                <form className="space-y-6 mt-6">
                   <div>
                     <label htmlFor="genomforandeperiod" className="block text-sm font-medium text-gray-900 mb-2">
                       Genomförandeperiod av VFU, datum:
@@ -811,7 +851,7 @@ export default function App() {
                       id="genomforandeperiod"
                       defaultValue="2026-04-01 - 2026-06-01"
                       readOnly={activeRole === "student"}
-                      className={`w-full px-4 py-2 rounded-lg text-sm ${activeRole === "student" ? "bg-gray-50 cursor-default" : "focus:outline-none focus:ring-2 focus:ring-purple-500"}`}
+                      className={`w-full px-4 py-2 rounded-lg text-sm ${activeRole === "student" ? "bg-gray-50 cursor-default" : "focus:outline-none focus:ring-2 focus:ring-blue-500"}`}
                     />
                   </div>
 
@@ -825,7 +865,7 @@ export default function App() {
                       value={malformuleringssamtal}
                       readOnly={activeRole === "student"}
                       onChange={(e) => setMalformuleringssamtal(e.target.value)}
-                      className={`w-full px-4 py-2 border rounded-lg text-sm ${activeRole === "student" ? "bg-gray-50 cursor-default border-gray-200" : "border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"}`}
+                      className={`w-full px-4 py-2 border rounded-lg text-sm ${activeRole === "student" ? "bg-gray-50 cursor-default border-gray-200" : "border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"}`}
                     />
                   </div>
 
@@ -839,7 +879,7 @@ export default function App() {
                       value={halvtidsbedomning}
                       readOnly={activeRole === "student"}
                       onChange={(e) => setHalvtidsbedomning(e.target.value)}
-                      className={`w-full px-4 py-2 border rounded-lg text-sm ${activeRole === "student" ? "bg-gray-50 cursor-default border-gray-200" : "border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"}`}
+                      className={`w-full px-4 py-2 border rounded-lg text-sm ${activeRole === "student" ? "bg-gray-50 cursor-default border-gray-200" : "border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"}`}
                     />
                   </div>
 
@@ -853,12 +893,12 @@ export default function App() {
                       value={slutbedomning}
                       readOnly={activeRole === "student"}
                       onChange={(e) => setSlutbedomning(e.target.value)}
-                      className={`w-full px-4 py-2 border rounded-lg text-sm ${activeRole === "student" ? "bg-gray-50 cursor-default border-gray-200" : "border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"}`}
+                      className={`w-full px-4 py-2 border rounded-lg text-sm ${activeRole === "student" ? "bg-gray-50 cursor-default border-gray-200" : "border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"}`}
                     />
                   </div>
                 </form>
 
-                <div className="text-sm text-gray-700 leading-relaxed space-y-3">
+                <div className="text-sm text-gray-700 leading-relaxed space-y-3 mt-6">
                   <p>
                     BeVut är utformat efter kursmål. För varje kursmål finns kriterier angivna för hur målen ska
                     uppnås. Bedömningssamtalen ska vara studentdrivna.
@@ -876,6 +916,63 @@ export default function App() {
                     Ifyllt formulär skickas till kursansvarig universitetsadjunkt snarast efter avslutad VFU:
                   </p>
                 </div>
+
+                {/* Form status legend */}
+                <div className="mt-8 pt-6 border-t border-gray-200 space-y-6">
+                  {endtermCreated && (
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900 mb-3">Slutbedömning</p>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Skapad</span>
+                          <span className="text-gray-900">2026-06-05</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Undertecknad av handledare</span>
+                          {isSignedEnd ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Inte undertecknad</span>}
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Undertecknad av KI-representant</span>
+                          {isTeacherSignedEnd ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Inte undertecknad</span>}
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Undertecknad av elev</span>
+                          {isStudentSignedEnd ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Inte undertecknad</span>}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900 mb-3">Halvtidsbedömning</p>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Skapad</span>
+                        <span className="text-gray-900">2026-04-01</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Undertecknad av handledare</span>
+                        {isSigned ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Inte undertecknad</span>}
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Undertecknad av KI-representant</span>
+                        {isTeacherSigned ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Inte undertecknad</span>}
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Undertecknad av elev</span>
+                        {isStudentSigned ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Inte undertecknad</span>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {!endtermCreated && (
+                  <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-3">
+                    <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                    <p className="text-sm text-blue-800">Slutbedömning kommer att vara synlig efter att alla roller har undertecknat halvtidsbedömning</p>
+                  </div>
+                )}
               </div>
             ) : activeSection === "oppsumering" ? (
               /* Oppsumering Page */
@@ -885,7 +982,7 @@ export default function App() {
                 </div>
               ) : (
               <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-8">
-                <h1 className="text-2xl font-bold text-gray-900 mb-6">Oppsumering</h1>
+                <h1 className="text-2xl font-bold text-gray-900 mb-6">Sammanfattning</h1>
 
                 <form className="space-y-6">
                   <div>
@@ -905,9 +1002,58 @@ export default function App() {
                           setDatumFilledEnd(!!e.target.value);
                         }
                       }}
-                      className={`w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 ${showValidationErrors && ((activeTerm === "midterm" && !datumFilled) || (activeTerm === "endterm" && !datumFilledEnd)) ? "border-red-500 border-2" : "border-gray-300"}`}
+                      className={`w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${showValidationErrors && ((activeTerm === "midterm" && !datumFilled) || (activeTerm === "endterm" && !datumFilledEnd)) ? "border-red-500 border-2" : "border-gray-300"}`}
                     />
                   </div>
+
+                  {activeTerm === "endterm" && (
+                    <div>
+                      <label htmlFor="franvaroDagar" className="block text-sm font-medium text-gray-900 mb-2">
+                        Frånvaro:
+                      </label>
+                      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            id="franvaroDagar"
+                            min="0"
+                            value={franvaroDagar}
+                            onChange={(e) => setFranvaroDagar(e.target.value)}
+                            placeholder="0"
+                            className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <span className="text-sm text-gray-900">dagar</span>
+                        </div>
+                        <label className="flex items-center gap-2 text-sm text-gray-900">
+                          <input
+                            type="checkbox"
+                            checked={franvaroKI}
+                            onChange={(e) => setFranvaroKI(e.target.checked)}
+                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          Av KI sanktionerad uppgift
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-900">
+                          <input
+                            type="checkbox"
+                            checked={franvaroSjukdom}
+                            onChange={(e) => setFranvaroSjukdom(e.target.checked)}
+                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          Sjukdom
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-900">
+                          <input
+                            type="checkbox"
+                            checked={franvaroAnnat}
+                            onChange={(e) => setFranvaroAnnat(e.target.checked)}
+                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          Annat
+                        </label>
+                      </div>
+                    </div>
+                  )}
 
                   <div>
                     <label htmlFor="fungeratBra" className="block text-sm font-medium text-gray-900 mb-2">
@@ -929,7 +1075,7 @@ export default function App() {
                           setFungeratBraEndFilled(!!e.target.value);
                         }
                       }}
-                      className={`w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-vertical ${showValidationErrors && activeTerm === "endterm" && !fungeratBraEndFilled ? "border-red-500 border-2" : "border-gray-300"}`}
+                      className={`w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical ${showValidationErrors && activeTerm === "endterm" && !fungeratBraEndFilled ? "border-red-500 border-2" : "border-gray-300"}`}
                       placeholder="Enter text here..."
                     ></textarea>
                   </div>
@@ -944,7 +1090,7 @@ export default function App() {
                         rows={5}
                         value={tranaMer}
                         onChange={(e) => setTranaMer(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-vertical"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical"
                         placeholder="Enter text here..."
                       ></textarea>
                     </div>
@@ -967,6 +1113,8 @@ export default function App() {
                     underkandText="Bristande teoretiska kunskaper och/eller oförmåga att på ett strukturerat arbetssätt inhämta viktig information utifrån händelse, sjukdomshistoria och vitala parametrar samt tolka och förstå innebörden i insamlad fakta"
                     selectedValue={activeTerm === "midterm" ? selectedAssessment : selectedAssessmentEnd}
                     onSelect={activeTerm === "midterm" ? setSelectedAssessment : setSelectedAssessmentEnd}
+                    readOnly={supervisorSignedNow || activeRole !== "supervisor"}
+                    midtermValue={activeTerm === "endterm" ? selectedAssessment : undefined}
                     marker={activeTerm === "midterm" ? "O" : "X"}
                   />
                 </div>
@@ -978,6 +1126,8 @@ export default function App() {
                     underkandText="Bristande teoretiska kunskaper och/eller oförmåga att identifiera medicinska och/eller omvårdnadsbehov utifrån insamlad information, händelse, sjukdomshistoria och vitala parametrar"
                     selectedValue={activeTerm === "midterm" ? selectedAssessment2 : selectedAssessment2End}
                     onSelect={activeTerm === "midterm" ? setSelectedAssessment2 : setSelectedAssessment2End}
+                    readOnly={supervisorSignedNow || activeRole !== "supervisor"}
+                    midtermValue={activeTerm === "endterm" ? selectedAssessment2 : undefined}
                     marker={activeTerm === "midterm" ? "O" : "X"}
                   />
                 </div>
@@ -989,6 +1139,8 @@ export default function App() {
                     underkandText="Oförmåga att identifiera möjliga lösningar i omvårdnadssituationer med flera beståndsdelar eller bristande kunskap och/eller oförmåga att fatta beslut om, genomföra eller utvärdera effekten av omvårdnadsåtgärder i olika typer av situationer"
                     selectedValue={activeTerm === "midterm" ? selectedAssessment3 : selectedAssessment3End}
                     onSelect={activeTerm === "midterm" ? setSelectedAssessment3 : setSelectedAssessment3End}
+                    readOnly={supervisorSignedNow || activeRole !== "supervisor"}
+                    midtermValue={activeTerm === "endterm" ? selectedAssessment3 : undefined}
                     marker={activeTerm === "midterm" ? "O" : "X"}
                   />
                 </div>
@@ -1000,6 +1152,8 @@ export default function App() {
                     underkandText="Bristande förståelse för vilka legala förutsättningar som finns för att agera inom akutsjukvården i samband med specifika vårdsituationer"
                     selectedValue={activeTerm === "midterm" ? selectedAssessment4 : selectedAssessment4End}
                     onSelect={activeTerm === "midterm" ? setSelectedAssessment4 : setSelectedAssessment4End}
+                    readOnly={supervisorSignedNow || activeRole !== "supervisor"}
+                    midtermValue={activeTerm === "endterm" ? selectedAssessment4 : undefined}
                     marker={activeTerm === "midterm" ? "O" : "X"}
                   />
                 </div>
@@ -1009,7 +1163,7 @@ export default function App() {
               /* Signering av sluttvurdering Page */
               <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-8">
                 <h1 className="text-2xl font-bold text-gray-900 mb-6">
-                  {activeTerm === "midterm" ? "Signering av midterm" : "Signering av sluttvurdering"}
+                  {activeTerm === "midterm" ? "Signering av halvtidsbedömning" : "Signering av slutbedömning"}
                 </h1>
 
                 {(activeRole === "student" || activeRole === "teacher") && !supervisorSignedNow ? (
@@ -1080,12 +1234,12 @@ export default function App() {
                     <div className="mt-6">
                       <p className="text-sm text-gray-600 mb-3">Signerad av:</p>
                       <div className="flex items-center gap-3 w-fit">
-                        <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
+                        <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
                           VT
                         </div>
                         <div>
                           <p className="text-sm font-semibold text-gray-900">Viktor Torvaldsson</p>
-                          <p className="text-xs text-gray-600">Supervisor</p>
+                          <p className="text-xs text-gray-600">Handledare</p>
                         </div>
                         <div className="pl-4">
                           <p className="text-sm text-gray-700">2026-06-05</p>
@@ -1114,6 +1268,37 @@ export default function App() {
                     ) : (
                       <p className="text-sm text-gray-500 italic">Använd knappen nedan för att signera.</p>
                     )}
+                  </div>
+                )}
+
+                {(activeRole === "student" || activeRole === "teacher") && (
+                  <div className="mt-8 pt-8 border-t border-gray-200">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">KI-representantens signatur</h3>
+                    {!supervisorSignedNow ? (
+                      <p className="text-sm text-gray-500 italic">Väntar på handledarens signatur.</p>
+                    ) : teacherSignedNow ? (
+                      <div className="flex items-center gap-3 w-fit">
+                        <div className="w-10 h-10 bg-emerald-600 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">LK</div>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">Lena Karlsson</p>
+                          <p className="text-xs text-gray-600">KI-representant</p>
+                        </div>
+                        <div className="pl-4"><p className="text-sm text-gray-700">2026-06-05</p></div>
+                      </div>
+                    ) : activeRole === "student" ? (
+                      <p className="text-sm text-gray-500 italic">Ej signerad av KI-representant.</p>
+                    ) : (
+                      <p className="text-sm text-gray-500 italic">Använd knappen nedan för att signera.</p>
+                    )}
+                  </div>
+                )}
+
+                {!currentRoleSigned && (
+                  <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-3">
+                    <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                    <p className="text-sm text-blue-800">Kontrollera bedömningen i förhandsvisning uppe till höger innan du signerar</p>
                   </div>
                 )}
                 </>
@@ -1166,13 +1351,14 @@ export default function App() {
             )}
           </div>
           {/* Floating sign action */}
-          {activeSection === "signering" && !readingMode && (
+          {(readingMode || activeSection === "signering") && (
             <>
               {activeRole === "supervisor" && !supervisorSignedNow && (
                 <div className="sticky bottom-6 flex justify-center pointer-events-none">
                   <button
                     onClick={handleSign}
-                    className="pointer-events-auto px-8 py-3 bg-purple-600 text-white font-semibold rounded-full shadow-lg hover:bg-purple-700 active:scale-95 transition-all"
+                    disabled={signDisabled}
+                    className={`pointer-events-auto px-8 py-3 font-semibold rounded-full shadow-lg transition-all ${!signDisabled ? "bg-blue-600 text-white hover:bg-blue-700 active:scale-95" : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}
                   >
                     Signera
                   </button>
@@ -1184,14 +1370,31 @@ export default function App() {
                     onClick={() => {
                       if (activeTerm === "midterm") {
                         setIsStudentSigned(true);
-                        setEndtermCreated(true);
                       } else {
                         setIsStudentSignedEnd(true);
                       }
                     }}
-                    className="pointer-events-auto px-8 py-3 bg-purple-600 text-white font-semibold rounded-full shadow-lg hover:bg-purple-700 active:scale-95 transition-all"
+                    disabled={signDisabled}
+                    className={`pointer-events-auto px-8 py-3 font-semibold rounded-full shadow-lg transition-all ${!signDisabled ? "bg-blue-600 text-white hover:bg-blue-700 active:scale-95" : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}
                   >
                     Signera som student
+                  </button>
+                </div>
+              )}
+              {activeRole === "teacher" && supervisorSignedNow && !teacherSignedNow && (
+                <div className="sticky bottom-6 flex justify-center pointer-events-none">
+                  <button
+                    onClick={() => {
+                      if (activeTerm === "midterm") {
+                        setIsTeacherSigned(true);
+                      } else {
+                        setIsTeacherSignedEnd(true);
+                      }
+                    }}
+                    disabled={signDisabled}
+                    className={`pointer-events-auto px-8 py-3 font-semibold rounded-full shadow-lg transition-all ${!signDisabled ? "bg-blue-600 text-white hover:bg-blue-700 active:scale-95" : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}
+                  >
+                    Signera som KI-representant
                   </button>
                 </div>
               )}
@@ -1203,7 +1406,7 @@ export default function App() {
         <aside className="w-80 bg-white overflow-auto border-l border-gray-200 p-8">
           <div className="mb-4">
             <span className="text-sm font-bold text-gray-900 tracking-wide">
-              INNHOLD
+              Innehåll
             </span>
           </div>
 
@@ -1244,9 +1447,6 @@ export default function App() {
                   Akutmottagning
                 </span>
               </a>
-            </div>
-          ) : activeSection === "planering" ? (
-            <div className="space-y-3">
               <a href="#" onClick={scrollTo("malformuleringssamtal")} className="flex items-start gap-2 group">
                 {rsIcon(!!malformuleringssamtal, false, true)}
                 <span className="text-sm text-blue-600 group-hover:underline">
@@ -1332,7 +1532,7 @@ export default function App() {
               <a href="#" onClick={scrollTo("sign-section")} className="flex items-start gap-2 group">
                 {rsIcon(supervisorSignedNow, true)}
                 <span className="text-sm text-blue-600 group-hover:underline">
-                  {activeTerm === "midterm" ? "Signering av midterm" : "Sign"}
+                  {activeTerm === "midterm" ? "Signering av halvtidsbedömning" : "Signering av slutbedömning"}
                 </span>
               </a>
             </div>

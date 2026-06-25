@@ -330,7 +330,7 @@ export default function App() {
                   : "border border-gray-300 text-gray-700 hover:bg-gray-50"
               }`}
             >
-              {role.charAt(0).toUpperCase() + role.slice(1)}
+              {role === "supervisor" ? "Handledare" : role === "teacher" ? "Lærer" : "Student"}
             </button>
           ))}
         </div>
@@ -342,7 +342,7 @@ export default function App() {
           <div className="w-60 px-6 flex items-center gap-2">
             <ChevronLeft className="w-4 h-4 text-gray-700" />
             <span className="text-sm font-medium text-gray-700">
-              VURDERING
+              BEDÖMNING
             </span>
           </div>
           <div className="flex-1 px-8 flex gap-4 items-center">
@@ -470,7 +470,7 @@ export default function App() {
             {activeRole !== "student" && (
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <button className="w-full px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
-                  Avbryt vurderingsprosess
+                  Avbryt bedömningsprocess
                 </button>
               </div>
             )}
@@ -936,7 +936,7 @@ export default function App() {
                           {isTeacherSignedEnd ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Inte undertecknad</span>}
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Undertecknad av elev</span>
+                          <span className="text-gray-600">Undertecknad av student</span>
                           {isStudentSignedEnd ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Inte undertecknad</span>}
                         </div>
                       </div>
@@ -958,7 +958,7 @@ export default function App() {
                         {isTeacherSigned ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Inte undertecknad</span>}
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Undertecknad av elev</span>
+                        <span className="text-gray-600">Undertecknad av student</span>
                         {isStudentSigned ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Inte undertecknad</span>}
                       </div>
                     </div>
@@ -1444,7 +1444,7 @@ export default function App() {
               <a href="#" onClick={scrollTo("akutmottagning")} className="flex items-start gap-2 group">
                 {rsIcon(akutmottagningFilled, true, true)}
                 <span className="text-sm text-blue-600 group-hover:underline">
-                  Akutmottagning
+                  Vårdavdelning/enhet
                 </span>
               </a>
               <a href="#" onClick={scrollTo("malformuleringssamtal")} className="flex items-start gap-2 group">

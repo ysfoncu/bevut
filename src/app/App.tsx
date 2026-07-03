@@ -1,20 +1,23 @@
+/// <reference path="../vite-env.d.ts" />
 import {
   ChevronLeft,
+  ChevronRight,
   TrendingUp,
   CheckCircle2,
   Clock,
   Eye,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AssessmentQuestion } from "./components/AssessmentQuestion";
 import { AssessmentSummary } from "./components/AssessmentSummary";
-import ccByNcSa from "@/assets/cc-by-nc-sa.png";
+import ccByNcSa from "../assets/cc-by-nc-sa.png";
 
 export default function App() {
   const [activeSection, setActiveSection] = useState("praksisinformasjon");
   const [activeTerm, setActiveTerm] = useState<"midterm" | "endterm">("midterm");
   const [endtermCreated, setEndtermCreated] = useState(false);
   const [readingMode, setReadingMode] = useState(false);
+  const mainScrollRef = useRef<HTMLElement>(null);
   const [activeRole, setActiveRole] = useState<"supervisor" | "student" | "teacher">("supervisor");
 
   // Midterm states
@@ -138,37 +141,101 @@ export default function App() {
     activeTerm === "midterm" ? setSignDatum(v) : setSignDatumEnd(v);
   // Sign buttons stay disabled until a signature date is chosen (both terms).
   const signBtnDisabled = signDisabled || !signDatumNow;
-  // Floating action bar: pick a signature date, then sign. Shared by all three roles.
-  const renderSignAction = (label: string, onClick: () => void) => (
-    <div className="sticky bottom-6 flex justify-center pointer-events-none">
-      <div className="pointer-events-auto bg-white rounded-full shadow-lg border border-gray-200 pl-4 pr-2 py-2 flex items-center gap-3">
-        <label htmlFor="signDatum" className="text-sm font-medium text-gray-700 whitespace-nowrap">
-          Datum för signering<span className="text-red-600 ml-0.5">*</span>
-        </label>
-        <input
-          type="date"
-          id="signDatum"
-          value={signDatumNow}
-          onChange={(e) => setSignDatumNow(e.target.value)}
-          className={`px-3 py-1.5 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-            !signDatumNow ? "border-red-400" : "border-gray-300"
-          }`}
-        />
-        <button
-          onClick={onClick}
-          disabled={signBtnDisabled}
-          title={!signDatumNow ? "Välj ett datum för att kunna signera" : undefined}
-          className={`px-6 py-2 font-semibold rounded-full transition-all ${
-            !signBtnDisabled
-              ? "bg-blue-600 text-white hover:bg-blue-700 active:scale-95"
-              : "bg-gray-300 text-gray-500 cursor-not-allowed"
-          }`}
-        >
-          {label}
-        </button>
-      </div>
+  // Today's date (local) — signature dates cannot be earlier than today.
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  // Signature action card: pick a signature date, then sign. Shared by all three roles.
+  const signActionCard = (label: string, onClick: () => void) => (
+    <div className="bg-white rounded-full shadow-lg border border-gray-200 pl-4 pr-2 py-2 flex items-center gap-3">
+      <label htmlFor="signDatum" className="text-sm font-medium text-gray-700 whitespace-nowrap">
+        Datum för signering<span className="text-red-600 ml-0.5">*</span>
+      </label>
+      <input
+        type="date"
+        id="signDatum"
+        min={todayStr}
+        value={signDatumNow}
+        onChange={(e) => setSignDatumNow(e.target.value)}
+        className={`px-3 py-1.5 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          !signDatumNow ? "border-red-400" : "border-gray-300"
+        }`}
+      />
+      <button
+        onClick={onClick}
+        disabled={signBtnDisabled}
+        title={!signDatumNow ? "Välj ett datum för att kunna signera" : undefined}
+        className={`px-6 py-2 font-semibold rounded-full transition-all ${
+          !signBtnDisabled
+            ? "bg-blue-600 text-white hover:bg-blue-700 active:scale-95"
+            : "bg-gray-300 text-gray-500 cursor-not-allowed"
+        }`}
+      >
+        {label}
+      </button>
     </div>
   );
+  // The sign action for the active role (or null if it's not this role's turn / already signed).
+  const currentSignAction = () => {
+    if (activeRole === "supervisor" && !supervisorSignedNow)
+      return signActionCard("Signera", handleSign);
+    if (activeRole === "student" && supervisorSignedNow && !studentSignedNow)
+      return signActionCard("Signera som student", () => {
+        if (activeTerm === "midterm") setIsStudentSigned(true);
+        else setIsStudentSignedEnd(true);
+      });
+    if (activeRole === "teacher" && supervisorSignedNow && !teacherSignedNow)
+      return signActionCard("Signera som lärare", () => {
+        if (activeTerm === "midterm") setIsTeacherSigned(true);
+        else setIsTeacherSignedEnd(true);
+      });
+    return null;
+  };
+
+  // Ordered wizard steps for the Föregående / Nästa footer navigation.
+  const sectionOrder = ["praksisinformasjon", "bedomningskriterier", "oppsumering", "signering"];
+  const sectionIndex = sectionOrder.indexOf(activeSection);
+  const goToSection = (index: number) => {
+    setActiveSection(sectionOrder[index]);
+    mainScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Per-page status (role-aware) → sidebar dot: red = mandatory missing, yellow = optional missing, green = done.
+  const sectionStatus = (section: string): "red" | "yellow" | "green" => {
+    let mandatoryMissing = false;
+    let optionalMissing = false;
+    switch (section) {
+      case "praksisinformasjon":
+        mandatoryMissing = !akutmottagningFilled;
+        optionalMissing = !malformuleringssamtal || !halvtidsbedomning || !slutbedomning;
+        break;
+      case "bedomningskriterier":
+        mandatoryMissing =
+          activeTerm === "midterm"
+            ? !(selectedAssessment && selectedAssessment2 && selectedAssessment3 && selectedAssessment4)
+            : !(selectedAssessmentEnd && selectedAssessment2End && selectedAssessment3End && selectedAssessment4End);
+        break;
+      case "oppsumering":
+        optionalMissing = activeTerm === "midterm" ? !fungeratBra || !tranaMer : !fungeratBraEnd;
+        break;
+      case "signering":
+        mandatoryMissing = !currentRoleSigned;
+        break;
+    }
+    if (mandatoryMissing) return "red";
+    if (optionalMissing) return "yellow";
+    return "green";
+  };
+  const statusDot = (section: string) => {
+    const s = sectionStatus(section);
+    const color = s === "red" ? "bg-red-500" : s === "yellow" ? "bg-yellow-400" : "bg-green-500";
+    return <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1.5 ${color}`} aria-hidden="true" />;
+  };
+  const navItemClass = (section: string) => {
+    const active = activeSection === section;
+    return `w-full flex items-start gap-3 px-3 py-2 text-sm rounded-lg ${
+      active ? "text-gray-900 bg-gray-100 font-medium" : "text-gray-700 hover:bg-gray-100"
+    }`;
+  };
 
   return (
     <div className="size-full flex flex-col bg-gray-50">
@@ -291,48 +358,36 @@ export default function App() {
               <li>
                 <button
                   onClick={() => setActiveSection("praksisinformasjon")}
-                  className={`w-full flex items-start gap-3 px-3 py-2 text-sm rounded-lg ${
-                    activeSection === "praksisinformasjon"
-                      ? "text-gray-900 bg-gray-100 font-medium"
-                      : "text-gray-700 hover:bg-gray-100"
-                  } ${activeRole === "supervisor" && showValidationErrors && !akutmottagningFilled ? "border-2 border-red-500" : ""}`}
+                  className={navItemClass("praksisinformasjon")}
                 >
+                  {statusDot("praksisinformasjon")}
                   <span className="text-left">VFU-Information</span>
                 </button>
               </li>
               <li>
                 <button
                   onClick={() => setActiveSection("bedomningskriterier")}
-                  className={`w-full flex items-start gap-3 px-3 py-2 text-sm rounded-lg ${
-                    activeSection === "bedomningskriterier"
-                      ? "text-gray-900 bg-gray-100 font-medium"
-                      : "text-gray-700 hover:bg-gray-100"
-                  } ${activeRole === "supervisor" && showValidationErrors && ((activeTerm === "midterm" && (!selectedAssessment || !selectedAssessment2 || !selectedAssessment3 || !selectedAssessment4)) || (activeTerm === "endterm" && (!selectedAssessmentEnd || !selectedAssessment2End || !selectedAssessment3End || !selectedAssessment4End))) ? "border-2 border-red-500" : ""}`}
+                  className={navItemClass("bedomningskriterier")}
                 >
+                  {statusDot("bedomningskriterier")}
                   <span className="text-left">Lärandemål Akutsjukvård</span>
                 </button>
               </li>
               <li>
                 <button
                   onClick={() => setActiveSection("oppsumering")}
-                  className={`w-full flex items-start gap-3 px-3 py-2 text-sm rounded-lg ${
-                    activeSection === "oppsumering"
-                      ? "text-gray-900 bg-gray-100 font-medium"
-                      : "text-gray-700 hover:bg-gray-100"
-                  }`}
+                  className={navItemClass("oppsumering")}
                 >
+                  {statusDot("oppsumering")}
                   <span className="text-left">Sammanfattning</span>
                 </button>
               </li>
               <li>
                 <button
                   onClick={() => setActiveSection("signering")}
-                  className={`w-full flex items-start gap-3 px-3 py-2 text-sm rounded-lg ${
-                    activeSection === "signering"
-                      ? "text-gray-900 bg-gray-100 font-medium"
-                      : "text-gray-700 hover:bg-gray-100"
-                  }`}
+                  className={navItemClass("signering")}
                 >
+                  {statusDot("signering")}
                   <span className="text-left">
                     {activeTerm === "midterm" ? "Signering av halvtidsbedömning" : "Signering av slutbedömning"}
                   </span>
@@ -345,13 +400,16 @@ export default function App() {
                 <button className="w-full px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
                   Avbryt bedömningsprocess
                 </button>
+                <button className="w-full mt-2 px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
+                  Aktivera handlingsplan
+                </button>
               </div>
             )}
           </nav>
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto bg-gray-50 relative">
+        <main ref={mainScrollRef} className="flex-1 overflow-auto bg-gray-50 relative">
           <div className="px-8 py-8">
             {activeRole === "supervisor" && !readingMode && (() => {
               const midtermItems = [akutmottagningFilled, !!selectedAssessment, !!selectedAssessment2, !!selectedAssessment3, !!selectedAssessment4, isSigned];
@@ -572,12 +630,12 @@ export default function App() {
                     )}
                     {isStudentSigned ? (
                       <div>
-                        <p className="font-semibold mb-2">Elev:</p>
+                        <p className="font-semibold mb-2">Student:</p>
                         <p>Anna Andersson</p>
                         <p>Datum: 2026-06-05</p>
                       </div>
                     ) : (
-                      <p className="text-gray-600 italic">Ej signerad av elev</p>
+                      <p className="text-gray-600 italic">Ej signerad av student</p>
                     )}
                   </div>
                 </div>
@@ -629,12 +687,12 @@ export default function App() {
                     )}
                     {isStudentSignedEnd ? (
                       <div>
-                        <p className="font-semibold mb-2">Elev:</p>
+                        <p className="font-semibold mb-2">Student:</p>
                         <p>Anna Andersson</p>
                         <p>Datum: 2026-06-05</p>
                       </div>
                     ) : (
-                      <p className="text-gray-600 italic">Ej signerad av elev</p>
+                      <p className="text-gray-600 italic">Ej signerad av student</p>
                     )}
                   </div>
                 </div>
@@ -805,7 +863,7 @@ export default function App() {
                           {isTeacherSignedEnd ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Inte undertecknad</span>}
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Undertecknad av elev</span>
+                          <span className="text-gray-600">Undertecknad av student</span>
                           {isStudentSignedEnd ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Inte undertecknad</span>}
                         </div>
                       </div>
@@ -827,7 +885,7 @@ export default function App() {
                         {isTeacherSigned ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Inte undertecknad</span>}
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Undertecknad av elev</span>
+                        <span className="text-gray-600">Undertecknad av student</span>
                         {isStudentSigned ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Inte undertecknad</span>}
                       </div>
                     </div>
@@ -1097,7 +1155,7 @@ export default function App() {
 
                 {(activeRole === "student" || activeRole === "teacher") && (
                   <div className="mt-8 pt-8 border-t border-gray-200">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Elevens signatur</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Studentens signatur</h3>
                     {!supervisorSignedNow ? (
                       <p className="text-sm text-gray-500 italic">Väntar på handledarens signatur.</p>
                     ) : studentSignedNow ? (
@@ -1105,12 +1163,12 @@ export default function App() {
                         <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">AA</div>
                         <div>
                           <p className="text-sm font-semibold text-gray-900">Anna Andersson</p>
-                          <p className="text-xs text-gray-600">Elev</p>
+                          <p className="text-xs text-gray-600">Student</p>
                         </div>
                         <div className="pl-4"><p className="text-sm text-gray-700">{signDatumNow || "2026-06-05"}</p></div>
                       </div>
                     ) : activeRole === "teacher" ? (
-                      <p className="text-sm text-gray-500 italic">Ej signerad av elev.</p>
+                      <p className="text-sm text-gray-500 italic">Ej signerad av student.</p>
                     ) : (
                       <p className="text-sm text-gray-500 italic">Använd åtgärdsfältet nedan för att välja datum och signera.</p>
                     )}
@@ -1193,31 +1251,45 @@ export default function App() {
                 </div>
               </>
               )}
+
+              {/* Inline sign action (form view, Signering page) — shown after the form, before the divider */}
+              {activeSection === "signering" && currentSignAction() && (
+                <div className="mt-8 flex justify-center">
+                  {currentSignAction()}
+                </div>
+              )}
+
+              {/* Föregående / Nästa step navigation */}
+              <nav className="mt-8 flex items-center justify-between border-t border-gray-200 pt-6" aria-label="Sidnavigering">
+                {sectionIndex > 0 ? (
+                  <button
+                    onClick={() => goToSection(sectionIndex - 1)}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Föregående
+                  </button>
+                ) : (
+                  <span />
+                )}
+                {sectionIndex < sectionOrder.length - 1 && (
+                  <button
+                    onClick={() => goToSection(sectionIndex + 1)}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Nästa
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                )}
+              </nav>
               </div>
             )}
           </div>
-          {/* Floating sign action */}
-          {(readingMode || activeSection === "signering") && (
-            <>
-              {activeRole === "supervisor" && !supervisorSignedNow &&
-                renderSignAction("Signera", handleSign)}
-              {activeRole === "student" && supervisorSignedNow && !studentSignedNow &&
-                renderSignAction("Signera som elev", () => {
-                  if (activeTerm === "midterm") {
-                    setIsStudentSigned(true);
-                  } else {
-                    setIsStudentSignedEnd(true);
-                  }
-                })}
-              {activeRole === "teacher" && supervisorSignedNow && !teacherSignedNow &&
-                renderSignAction("Signera som lärare", () => {
-                  if (activeTerm === "midterm") {
-                    setIsTeacherSigned(true);
-                  } else {
-                    setIsTeacherSignedEnd(true);
-                  }
-                })}
-            </>
+          {/* Floating sign action — reading mode only */}
+          {readingMode && currentSignAction() && (
+            <div className="sticky bottom-6 flex justify-center pointer-events-none">
+              <div className="pointer-events-auto">{currentSignAction()}</div>
+            </div>
           )}
         </main>
 

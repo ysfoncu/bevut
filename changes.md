@@ -63,3 +63,21 @@ display info as
   When close is pressed navigate to VFU-Information page
 
 Kontrollera bedömninget i förhandvisning uppe till höger innan du signerar
+
+Left side bad after "Avbryt bed..." add button as "Aktivera handlingsplan" (no action in prototype but for visualization).
+
+in form view, not in reading mode.
+dont use date and signature as floating action
+display is before dvider after form
+for all roles
+
+left sidebar items
+based on the user role
+If user has not filled mandatory input in the page, item background yellow
+If user filled mandatory input in the page, item background green
+
+instead of changing background color, use colored circles before items
+If user has not filled mandatory input in the page, circle red
+If user filled mandatory input in the page, circle green
+If user has not filled optional input in the page, circle yellow
+If user filled mandatory input in the page, circle green

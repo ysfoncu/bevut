@@ -10,7 +10,6 @@ import {
 import { useState, useEffect, useRef } from "react";
 import { AssessmentQuestion } from "./components/AssessmentQuestion";
 import { AssessmentSummary } from "./components/AssessmentSummary";
-import ccByNcSa from "../assets/cc-by-nc-sa.png";
 
 export default function App() {
   const [activeSection, setActiveSection] = useState("praksisinformasjon");
@@ -714,11 +713,6 @@ export default function App() {
                     <p className="text-base">
                       <span className="font-bold italic">BeVut</span> Hägg &amp; Ulfvarson 2008
                     </p>
-                    <img
-                      src={ccByNcSa}
-                      alt="Creative Commons – Erkännande-IckeKommersiell-DelaLika (BY-NC-SA)"
-                      className="h-12 w-auto flex-shrink-0"
-                    />
                   </div>
                 </div>
               </div>

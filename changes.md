@@ -81,3 +81,5 @@ If user has not filled mandatory input in the page, circle red
 If user filled mandatory input in the page, circle green
 If user has not filled optional input in the page, circle yellow
 If user filled mandatory input in the page, circle green
+
+for student ad teacher roles only Signering av halvtidsbedömning item should be circle red or circle green. other item colors gray

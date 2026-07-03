@@ -226,8 +226,13 @@ export default function App() {
     return "green";
   };
   const statusDot = (section: string) => {
-    const s = sectionStatus(section);
-    const color = s === "red" ? "bg-red-500" : s === "yellow" ? "bg-yellow-400" : "bg-green-500";
+    // Students/teachers don't fill the form — only their Signering status is tracked; other items are gray.
+    const s =
+      (activeRole === "student" || activeRole === "teacher") && section !== "signering"
+        ? "gray"
+        : sectionStatus(section);
+    const color =
+      s === "red" ? "bg-red-500" : s === "yellow" ? "bg-yellow-400" : s === "green" ? "bg-green-500" : "bg-gray-300";
     return <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1.5 ${color}`} aria-hidden="true" />;
   };
   const navItemClass = (section: string) => {

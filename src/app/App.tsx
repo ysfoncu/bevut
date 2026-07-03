@@ -8,6 +8,7 @@ import {
 import { useState, useEffect } from "react";
 import { AssessmentQuestion } from "./components/AssessmentQuestion";
 import { AssessmentSummary } from "./components/AssessmentSummary";
+import ccByNcSa from "@/assets/cc-by-nc-sa.png";
 
 export default function App() {
   const [activeSection, setActiveSection] = useState("praksisinformasjon");
@@ -22,8 +23,6 @@ export default function App() {
   const [selectedAssessment3, setSelectedAssessment3] = useState<string | null>(null);
   const [selectedAssessment4, setSelectedAssessment4] = useState<string | null>(null);
   const [isSigned, setIsSigned] = useState(false);
-  const [datumFilled, setDatumFilled] = useState(false);
-  const [datum, setDatum] = useState("");
   const [fungeratBra, setFungeratBra] = useState("");
   const [tranaMer, setTranaMer] = useState("");
 
@@ -33,8 +32,6 @@ export default function App() {
   const [selectedAssessment3End, setSelectedAssessment3End] = useState<string | null>(null);
   const [selectedAssessment4End, setSelectedAssessment4End] = useState<string | null>(null);
   const [isSignedEnd, setIsSignedEnd] = useState(false);
-  const [datumFilledEnd, setDatumFilledEnd] = useState(false);
-  const [datumEnd, setDatumEnd] = useState("");
   const [fungeratBraEnd, setFungeratBraEnd] = useState("");
   const [fungeratBraEndFilled, setFungeratBraEndFilled] = useState(false);
   const [tranaMerEnd, setTranaMerEnd] = useState("");
@@ -44,9 +41,7 @@ export default function App() {
   const [franvaroAnnat, setFranvaroAnnat] = useState(false);
 
   // Shared states
-  const [personnummerFilled, setPersonnummerFilled] = useState(false);
   const [akutmottagningFilled, setAkutmottagningFilled] = useState(false);
-  const [personnummer, setPersonnummer] = useState("");
   const [akutmottagning, setAkutmottagning] = useState("");
   const [malformuleringssamtal, setMalformuleringssamtal] = useState("");
   const [halvtidsbedomning, setHalvtidsbedomning] = useState("");
@@ -57,6 +52,9 @@ export default function App() {
   const [isTeacherSigned, setIsTeacherSigned] = useState(false);
   const [isTeacherSignedEnd, setIsTeacherSignedEnd] = useState(false);
   const [showEndtermPopup, setShowEndtermPopup] = useState(false);
+  // Signature date — the signer must pick a date before signing (both terms)
+  const [signDatum, setSignDatum] = useState("");
+  const [signDatumEnd, setSignDatumEnd] = useState("");
 
   // When both student and teacher have signed the midterm, open the endterm form automatically
   useEffect(() => {
@@ -69,7 +67,6 @@ export default function App() {
 
   const validateAllFields = () => {
     const errors = [];
-    if (!personnummerFilled) errors.push("praksisinformasjon");
     if (!akutmottagningFilled) errors.push("praksisinformasjon");
 
     if (activeTerm === "midterm") {
@@ -77,15 +74,13 @@ export default function App() {
       if (!selectedAssessment2) errors.push("bedomningskriterier");
       if (!selectedAssessment3) errors.push("bedomningskriterier");
       if (!selectedAssessment4) errors.push("bedomningskriterier");
-      if (!datumFilled) errors.push("oppsumering");
     } else {
       if (!selectedAssessmentEnd) errors.push("bedomningskriterier");
       if (!selectedAssessment2End) errors.push("bedomningskriterier");
       if (!selectedAssessment3End) errors.push("bedomningskriterier");
       if (!selectedAssessment4End) errors.push("bedomningskriterier");
-      if (!datumFilledEnd) errors.push("oppsumering");
-      if (!fungeratBraEndFilled) errors.push("oppsumering");
     }
+    if (!(activeTerm === "midterm" ? signDatum : signDatumEnd)) errors.push("signering");
     return errors;
   };
 
@@ -102,72 +97,6 @@ export default function App() {
         setShowValidationErrors(false);
       }
     }
-  };
-
-  const getPraksisinformasjonStatus = () => {
-    let mandatoryCount = 0;
-    let optionalCount = 0;
-
-    if (!personnummerFilled) mandatoryCount++;
-    if (!akutmottagningFilled) mandatoryCount++;
-
-    if (!malformuleringssamtal) optionalCount++;
-    if (!halvtidsbedomning) optionalCount++;
-    if (!slutbedomning) optionalCount++;
-
-    const totalCount = mandatoryCount + optionalCount;
-    return { mandatoryCount, optionalCount, totalCount };
-  };
-
-  const getBedomningskriterierStatus = () => {
-    let mandatoryCount = 0;
-    let optionalCount = 0;
-
-    if (activeTerm === "midterm") {
-      if (!selectedAssessment) mandatoryCount++;
-      if (!selectedAssessment2) mandatoryCount++;
-      if (!selectedAssessment3) mandatoryCount++;
-      if (!selectedAssessment4) mandatoryCount++;
-    } else {
-      if (!selectedAssessmentEnd) mandatoryCount++;
-      if (!selectedAssessment2End) mandatoryCount++;
-      if (!selectedAssessment3End) mandatoryCount++;
-      if (!selectedAssessment4End) mandatoryCount++;
-    }
-
-    const totalCount = mandatoryCount + optionalCount;
-    return { mandatoryCount, optionalCount, totalCount };
-  };
-
-  const getOppsumeringStatus = () => {
-    let mandatoryCount = 0;
-    let optionalCount = 0;
-
-    if (activeTerm === "midterm") {
-      if (!datumFilled) mandatoryCount++;
-      if (!fungeratBra) optionalCount++;
-      if (!tranaMer) optionalCount++;
-    } else {
-      if (!datumFilledEnd) mandatoryCount++;
-      if (!fungeratBraEndFilled) mandatoryCount++;
-    }
-
-    const totalCount = mandatoryCount + optionalCount;
-    return { mandatoryCount, optionalCount, totalCount };
-  };
-
-  const getSigneringStatus = () => {
-    let mandatoryCount = 0;
-    let optionalCount = 0;
-
-    if (activeTerm === "midterm") {
-      if (!isSigned) mandatoryCount++;
-    } else {
-      if (!isSignedEnd) mandatoryCount++;
-    }
-
-    const totalCount = mandatoryCount + optionalCount;
-    return { mandatoryCount, optionalCount, totalCount };
   };
 
   const supervisorSignedNow = activeTerm === "midterm" ? isSigned : isSignedEnd;
@@ -203,84 +132,43 @@ export default function App() {
   const currentRoleSigned =
     activeRole === "supervisor" ? supervisorSignedNow : activeRole === "student" ? studentSignedNow : teacherSignedNow;
 
-  const renderSidebarBadge = (
-    type: "regular" | "signering",
-    status?: { mandatoryCount: number; optionalCount: number; totalCount: number },
-    editableForTeacher = false
-  ) => {
-    if (type === "signering" && (activeRole === "student" || activeRole === "teacher")) {
-      const mySigned = activeRole === "student" ? studentSignedNow : teacherSignedNow;
-      if (!supervisorSignedNow) {
-        return (
-          <div className="w-8 h-8 rounded bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
-            <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-        );
-      }
-      if (!mySigned) {
-        return (
-          <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0 bg-red-500">
-            <span className="text-white font-bold text-sm">1</span>
-          </div>
-        );
-      }
-      return (
-        <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0 bg-green-500">
-          <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-        </div>
-      );
-    }
-    if (activeRole === "teacher" && !editableForTeacher) {
-      return (
-        <div className="w-8 h-8 rounded bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
-          <Eye className="w-4 h-4 text-gray-500" />
-        </div>
-      );
-    }
-    if (activeRole === "student") {
-      return (
-        <div className="w-8 h-8 rounded bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
-          <Eye className="w-4 h-4 text-gray-500" />
-        </div>
-      );
-    }
-    if (type === "signering") {
-      if (!supervisorSignedNow) {
-        return (
-          <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0 bg-red-500">
-            <span className="text-white font-bold text-sm">1</span>
-          </div>
-        );
-      }
-      return (
-        <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0 bg-green-500">
-          <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-        </div>
-      );
-    }
-    if (!status) return null;
-    if (status.mandatoryCount > 0) {
-      return (
-        <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0 bg-red-500">
-          <span className="text-white font-bold text-sm">{status.totalCount}</span>
-        </div>
-      );
-    }
-    if (status.optionalCount > 0) {
-      return (
-        <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0 bg-yellow-500">
-          <span className="text-white font-bold text-sm">{status.totalCount}</span>
-        </div>
-      );
-    }
-    return (
-      <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0 bg-green-500">
-        <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+  // Signature date for the active term; required before any role can sign.
+  const signDatumNow = activeTerm === "midterm" ? signDatum : signDatumEnd;
+  const setSignDatumNow = (v: string) =>
+    activeTerm === "midterm" ? setSignDatum(v) : setSignDatumEnd(v);
+  // Sign buttons stay disabled until a signature date is chosen (both terms).
+  const signBtnDisabled = signDisabled || !signDatumNow;
+  // Floating action bar: pick a signature date, then sign. Shared by all three roles.
+  const renderSignAction = (label: string, onClick: () => void) => (
+    <div className="sticky bottom-6 flex justify-center pointer-events-none">
+      <div className="pointer-events-auto bg-white rounded-full shadow-lg border border-gray-200 pl-4 pr-2 py-2 flex items-center gap-3">
+        <label htmlFor="signDatum" className="text-sm font-medium text-gray-700 whitespace-nowrap">
+          Datum för signering<span className="text-red-600 ml-0.5">*</span>
+        </label>
+        <input
+          type="date"
+          id="signDatum"
+          value={signDatumNow}
+          onChange={(e) => setSignDatumNow(e.target.value)}
+          className={`px-3 py-1.5 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            !signDatumNow ? "border-red-400" : "border-gray-300"
+          }`}
+        />
+        <button
+          onClick={onClick}
+          disabled={signBtnDisabled}
+          title={!signDatumNow ? "Välj ett datum för att kunna signera" : undefined}
+          className={`px-6 py-2 font-semibold rounded-full transition-all ${
+            !signBtnDisabled
+              ? "bg-blue-600 text-white hover:bg-blue-700 active:scale-95"
+              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+          }`}
+        >
+          {label}
+        </button>
       </div>
-    );
-  };
+    </div>
+  );
 
   return (
     <div className="size-full flex flex-col bg-gray-50">
@@ -296,7 +184,7 @@ export default function App() {
               <button
                 onClick={() => {
                   setShowEndtermPopup(false);
-                  setActiveSection("bedomningskriterier");
+                  setActiveSection("praksisinformasjon");
                 }}
                 className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors"
               >
@@ -398,17 +286,6 @@ export default function App() {
       <div className="flex flex-1 overflow-hidden">
         {/* Left Sidebar */}
         <aside className={`w-60 bg-white border-r border-gray-200 flex flex-col overflow-auto${readingMode ? " hidden" : ""}`}>
-          {/* Student Profile */}
-          <div className="p-4 border-b border-gray-200">
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white text-xl font-semibold mb-3">
-                AA
-              </div>
-              <p className="text-sm font-semibold text-gray-900">Anna Andersson</p>
-              <p className="text-xs text-gray-600 mt-1">anna.andersson@student.se</p>
-            </div>
-          </div>
-
           <nav className="flex-1 p-4">
             <ul className="space-y-2">
               <li>
@@ -418,9 +295,8 @@ export default function App() {
                     activeSection === "praksisinformasjon"
                       ? "text-gray-900 bg-gray-100 font-medium"
                       : "text-gray-700 hover:bg-gray-100"
-                  } ${activeRole === "supervisor" && showValidationErrors && (!personnummerFilled || !akutmottagningFilled) ? "border-2 border-red-500" : ""}`}
+                  } ${activeRole === "supervisor" && showValidationErrors && !akutmottagningFilled ? "border-2 border-red-500" : ""}`}
                 >
-                  {!readingMode && renderSidebarBadge("regular", getPraksisinformasjonStatus(), true)}
                   <span className="text-left">VFU-Information</span>
                 </button>
               </li>
@@ -433,8 +309,7 @@ export default function App() {
                       : "text-gray-700 hover:bg-gray-100"
                   } ${activeRole === "supervisor" && showValidationErrors && ((activeTerm === "midterm" && (!selectedAssessment || !selectedAssessment2 || !selectedAssessment3 || !selectedAssessment4)) || (activeTerm === "endterm" && (!selectedAssessmentEnd || !selectedAssessment2End || !selectedAssessment3End || !selectedAssessment4End))) ? "border-2 border-red-500" : ""}`}
                 >
-                  {!readingMode && renderSidebarBadge("regular", getBedomningskriterierStatus())}
-                  <span className="text-left">Bedömningskriterier Akutsjukvård</span>
+                  <span className="text-left">Lärandemål Akutsjukvård</span>
                 </button>
               </li>
               <li>
@@ -444,9 +319,8 @@ export default function App() {
                     activeSection === "oppsumering"
                       ? "text-gray-900 bg-gray-100 font-medium"
                       : "text-gray-700 hover:bg-gray-100"
-                  } ${activeRole === "supervisor" && showValidationErrors && ((activeTerm === "midterm" && !datumFilled) || (activeTerm === "endterm" && !datumFilledEnd)) ? "border-2 border-red-500" : ""}`}
+                  }`}
                 >
-                  {!readingMode && renderSidebarBadge("regular", getOppsumeringStatus())}
                   <span className="text-left">Sammanfattning</span>
                 </button>
               </li>
@@ -459,7 +333,6 @@ export default function App() {
                       : "text-gray-700 hover:bg-gray-100"
                   }`}
                 >
-                  {!readingMode && renderSidebarBadge("signering")}
                   <span className="text-left">
                     {activeTerm === "midterm" ? "Signering av halvtidsbedömning" : "Signering av slutbedömning"}
                   </span>
@@ -481,8 +354,8 @@ export default function App() {
         <main className="flex-1 overflow-auto bg-gray-50 relative">
           <div className="px-8 py-8">
             {activeRole === "supervisor" && !readingMode && (() => {
-              const midtermItems = [personnummerFilled, akutmottagningFilled, !!selectedAssessment, !!selectedAssessment2, !!selectedAssessment3, !!selectedAssessment4, datumFilled, isSigned];
-              const endtermItems = [personnummerFilled, akutmottagningFilled, !!selectedAssessmentEnd, !!selectedAssessment2End, !!selectedAssessment3End, !!selectedAssessment4End, datumFilledEnd, fungeratBraEndFilled, isSignedEnd];
+              const midtermItems = [akutmottagningFilled, !!selectedAssessment, !!selectedAssessment2, !!selectedAssessment3, !!selectedAssessment4, isSigned];
+              const endtermItems = [akutmottagningFilled, !!selectedAssessmentEnd, !!selectedAssessment2End, !!selectedAssessment3End, !!selectedAssessment4End, isSignedEnd];
               const items = activeTerm === "midterm" ? midtermItems : endtermItems;
               const completed = items.filter(Boolean).length;
               const total = items.length;
@@ -563,7 +436,6 @@ export default function App() {
                     <p><span className="font-semibold">Kurs:</span> Akutsjukvård med verksamhetsförlagd utbildning, 7,5 hp</p>
                     <p><span className="font-semibold">Kurskod:</span> B2KS01</p>
                     <p><span className="font-semibold">Studentens namn:</span> Anna Andersson</p>
-                    <p><span className="font-semibold">Studentens personnummer:</span> {personnummer || "_______________"}</p>
                     <p><span className="font-semibold">Akutmottagning:</span> {akutmottagning || "_______________"}</p>
                   </div>
                 </div>
@@ -583,7 +455,7 @@ export default function App() {
                 {(activeRole === "supervisor" || isSigned || isSignedEnd) ? (
                 <div id="rm-bedomningskriterier" className="mb-8">
                   <h2 className="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b-2 border-gray-300">
-                    Bedömningskriterier Akutsjukvård
+                    Lärandemål Akutsjukvård
                   </h2>
 
                   <p className="text-sm text-gray-700 mb-4">
@@ -595,13 +467,13 @@ export default function App() {
                       <thead>
                         <tr className="bg-gray-50">
                           <th className="border border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-900">
-                            Bedömningskriterier
+                            Lärandemål
                           </th>
                           <th className="border border-gray-300 px-4 py-3 text-center text-sm font-semibold text-gray-900">
-                            Godkänt
+                            Halvtidsbedömning
                           </th>
                           <th className="border border-gray-300 px-4 py-3 text-center text-sm font-semibold text-gray-900">
-                            Student uppfyller inte kriterierna för godkänd
+                            Slutbedömning
                           </th>
                         </tr>
                       </thead>
@@ -632,25 +504,23 @@ export default function App() {
                             <td className="border border-gray-300 px-4 py-3 text-sm text-gray-900">
                               {row.label}
                             </td>
-                            <td className="border border-gray-300 p-0 text-center text-lg font-bold text-gray-900">
-                              <div className="flex flex-col divide-y divide-gray-200">
-                                <div className="flex items-center justify-center px-3 h-10">
-                                  <span>{(activeRole === "supervisor" || isSigned) && row.halvtid === "godkand" ? "O" : ""}</span>
-                                </div>
-                                <div className="flex items-center justify-center px-3 h-10">
-                                  <span>{(activeRole === "supervisor" || isSignedEnd) && row.slut === "godkand" ? "X" : ""}</span>
-                                </div>
-                              </div>
+                            <td className={`border border-gray-300 px-4 py-3 text-center text-lg font-bold ${
+                              (activeRole === "supervisor" || isSigned) && row.halvtid === "godkand"
+                                ? "bg-green-100 text-green-700"
+                                : (activeRole === "supervisor" || isSigned) && row.halvtid === "underkand"
+                                ? "bg-red-100 text-red-700"
+                                : "text-gray-900"
+                            }`}>
+                              {(activeRole === "supervisor" || isSigned) && (row.halvtid === "godkand" || row.halvtid === "underkand") ? "O" : ""}
                             </td>
-                            <td className="border border-gray-300 p-0 text-center text-lg font-bold text-gray-900">
-                              <div className="flex flex-col divide-y divide-gray-200">
-                                <div className="flex items-center justify-center px-3 h-10">
-                                  <span>{(activeRole === "supervisor" || isSigned) && row.halvtid === "underkand" ? "O" : ""}</span>
-                                </div>
-                                <div className="flex items-center justify-center px-3 h-10">
-                                  <span>{(activeRole === "supervisor" || isSignedEnd) && row.slut === "underkand" ? "X" : ""}</span>
-                                </div>
-                              </div>
+                            <td className={`border border-gray-300 px-4 py-3 text-center text-lg font-bold ${
+                              (activeRole === "supervisor" || isSignedEnd) && row.slut === "godkand"
+                                ? "bg-green-100 text-green-700"
+                                : (activeRole === "supervisor" || isSignedEnd) && row.slut === "underkand"
+                                ? "bg-red-100 text-red-700"
+                                : "text-gray-900"
+                            }`}>
+                              {(activeRole === "supervisor" || isSignedEnd) && (row.slut === "godkand" || row.slut === "underkand") ? "X" : ""}
                             </td>
                           </tr>
                         ))}
@@ -665,7 +535,6 @@ export default function App() {
                 <div id="rm-halvtidsbedomning" className="mb-8">
                   <h2 className="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b-2 border-gray-300">Halvtidsbedömning</h2>
                   <div className="space-y-4 text-sm">
-                    <p><span className="font-semibold">Datum:</span> {datum || "_______________"}</p>
                     <div>
                       <p className="font-semibold mb-2">Detta har fungerat bra:</p>
                       <p className="whitespace-pre-wrap">{fungeratBra || "_______________"}</p>
@@ -694,21 +563,21 @@ export default function App() {
                     )}
                     {isTeacherSigned ? (
                       <div>
-                        <p className="font-semibold mb-2">KI-representant:</p>
-                        <p>Lena Karlsson - KI-representant</p>
+                        <p className="font-semibold mb-2">Lärare:</p>
+                        <p>Lena Karlsson - Lärare</p>
                         <p>Datum: 2026-06-05</p>
                       </div>
                     ) : (
-                      <p className="text-gray-600 italic">Ej signerad av KI-representant</p>
+                      <p className="text-gray-600 italic">Ej signerad av lärare</p>
                     )}
                     {isStudentSigned ? (
                       <div>
-                        <p className="font-semibold mb-2">Student:</p>
+                        <p className="font-semibold mb-2">Elev:</p>
                         <p>Anna Andersson</p>
                         <p>Datum: 2026-06-05</p>
                       </div>
                     ) : (
-                      <p className="text-gray-600 italic">Ej signerad av student</p>
+                      <p className="text-gray-600 italic">Ej signerad av elev</p>
                     )}
                   </div>
                 </div>
@@ -719,7 +588,6 @@ export default function App() {
                 <div id="rm-slutbedomning" className="mb-8">
                   <h2 className="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b-2 border-gray-300">Slutbedömning</h2>
                   <div className="space-y-4 text-sm">
-                    <p><span className="font-semibold">Datum:</span> {datumEnd || "_______________"}</p>
                     <p>
                       <span className="font-semibold">Frånvaro:</span> {franvaroDagar || "_______"} dagar{" "}
                       {[
@@ -752,25 +620,44 @@ export default function App() {
                     )}
                     {isTeacherSignedEnd ? (
                       <div>
-                        <p className="font-semibold mb-2">KI-representant:</p>
-                        <p>Lena Karlsson - KI-representant</p>
+                        <p className="font-semibold mb-2">Lärare:</p>
+                        <p>Lena Karlsson - Lärare</p>
                         <p>Datum: 2026-06-05</p>
                       </div>
                     ) : (
-                      <p className="text-gray-600 italic">Ej signerad av KI-representant</p>
+                      <p className="text-gray-600 italic">Ej signerad av lärare</p>
                     )}
                     {isStudentSignedEnd ? (
                       <div>
-                        <p className="font-semibold mb-2">Student:</p>
+                        <p className="font-semibold mb-2">Elev:</p>
                         <p>Anna Andersson</p>
                         <p>Datum: 2026-06-05</p>
                       </div>
                     ) : (
-                      <p className="text-gray-600 italic">Ej signerad av student</p>
+                      <p className="text-gray-600 italic">Ej signerad av elev</p>
                     )}
                   </div>
                 </div>
                 ) : null}
+
+                {/* Copyright / license footer */}
+                <div className="mt-10 pt-6 border-t border-gray-300 text-sm text-gray-900 space-y-1">
+                  <p>Detta dokument är vägledande för examinators slutgiltiga betygsbedömning</p>
+                  <p>Ansvarig lärares namn</p>
+                  <p>
+                    Enligt upphovsmannarätten tillhörande författarna Sektionen för omvårdnad Karolinska Institutet
+                  </p>
+                  <div className="flex items-center justify-center gap-[10px] pt-3">
+                    <p className="text-base">
+                      <span className="font-bold italic">BeVut</span> Hägg &amp; Ulfvarson 2008
+                    </p>
+                    <img
+                      src={ccByNcSa}
+                      alt="Creative Commons – Erkännande-IckeKommersiell-DelaLika (BY-NC-SA)"
+                      className="h-12 w-auto flex-shrink-0"
+                    />
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="max-w-5xl mx-auto">
@@ -799,24 +686,6 @@ export default function App() {
                       defaultValue="Anna Andersson"
                       readOnly={activeRole === "student"}
                       className={`w-full px-4 py-2 rounded-lg text-sm ${activeRole === "student" ? "bg-gray-50 cursor-default" : "focus:outline-none focus:ring-2 focus:ring-blue-500"}`}
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="personnummer" className="block text-sm font-medium text-gray-900 mb-2">
-                      Studentens personnummer:<span className="text-red-600 ml-1">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      id="personnummer"
-                      placeholder="YYYYMMDD-XXXX"
-                      value={personnummer}
-                      readOnly={activeRole === "student"}
-                      onChange={(e) => {
-                        setPersonnummer(e.target.value);
-                        setPersonnummerFilled(!!e.target.value);
-                      }}
-                      className={`w-full px-4 py-2 border rounded-lg text-sm ${activeRole === "student" ? "bg-gray-50 cursor-default border-gray-200" : `focus:outline-none focus:ring-2 focus:ring-blue-500 ${showValidationErrors && !personnummerFilled ? "border-red-500 border-2" : "border-gray-300"}`}`}
                     />
                   </div>
 
@@ -932,11 +801,11 @@ export default function App() {
                           {isSignedEnd ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Inte undertecknad</span>}
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Undertecknad av KI-representant</span>
+                          <span className="text-gray-600">Undertecknad av lärare</span>
                           {isTeacherSignedEnd ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Inte undertecknad</span>}
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Undertecknad av student</span>
+                          <span className="text-gray-600">Undertecknad av elev</span>
                           {isStudentSignedEnd ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Inte undertecknad</span>}
                         </div>
                       </div>
@@ -954,11 +823,11 @@ export default function App() {
                         {isSigned ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Inte undertecknad</span>}
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Undertecknad av KI-representant</span>
+                        <span className="text-gray-600">Undertecknad av lärare</span>
                         {isTeacherSigned ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Inte undertecknad</span>}
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Undertecknad av student</span>
+                        <span className="text-gray-600">Undertecknad av elev</span>
                         {isStudentSigned ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Inte undertecknad</span>}
                       </div>
                     </div>
@@ -985,26 +854,6 @@ export default function App() {
                 <h1 className="text-2xl font-bold text-gray-900 mb-6">Sammanfattning</h1>
 
                 <form className="space-y-6">
-                  <div>
-                    <label htmlFor="datum" className="block text-sm font-medium text-gray-900 mb-2">
-                      Datum:<span className="text-red-600 ml-1">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      id="datum"
-                      value={activeTerm === "midterm" ? datum : datumEnd}
-                      onChange={(e) => {
-                        if (activeTerm === "midterm") {
-                          setDatum(e.target.value);
-                          setDatumFilled(!!e.target.value);
-                        } else {
-                          setDatumEnd(e.target.value);
-                          setDatumFilledEnd(!!e.target.value);
-                        }
-                      }}
-                      className={`w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${showValidationErrors && ((activeTerm === "midterm" && !datumFilled) || (activeTerm === "endterm" && !datumFilledEnd)) ? "border-red-500 border-2" : "border-gray-300"}`}
-                    />
-                  </div>
 
                   {activeTerm === "endterm" && (
                     <div>
@@ -1060,7 +909,7 @@ export default function App() {
                       {activeTerm === "midterm" ? (
                         <>Detta har fungerat bra: <span className="text-gray-500 font-normal">(Valgfritt)</span></>
                       ) : (
-                        <>Eventuella kommentarer utöver det som framgår av Bedömningskriterierna:<span className="text-red-600 ml-1">*</span></>
+                        <>Eventuella kommentarer utöver det som framgår av Bedömningskriterierna: <span className="text-gray-500 font-normal">(Valgfritt)</span></>
                       )}
                     </label>
                     <textarea
@@ -1075,7 +924,7 @@ export default function App() {
                           setFungeratBraEndFilled(!!e.target.value);
                         }
                       }}
-                      className={`w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical ${showValidationErrors && activeTerm === "endterm" && !fungeratBraEndFilled ? "border-red-500 border-2" : "border-gray-300"}`}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical"
                       placeholder="Enter text here..."
                     ></textarea>
                   </div>
@@ -1173,7 +1022,7 @@ export default function App() {
                 ) : (
                 <>
                 <div className="mb-8">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Sammanfattning - Bedömningskriterier Akutsjukvård</h2>
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Sammanfattning - Lärandemål Akutsjukvård</h2>
                   <AssessmentSummary
                     marker={activeTerm === "midterm" ? "O" : "X"}
                     assessments={[
@@ -1205,26 +1054,23 @@ export default function App() {
                         <div className="mb-4 p-4 bg-red-50 border border-red-300 rounded-lg">
                           <p className="text-sm font-semibold text-red-800 mb-2">Vänligen fyll i alla obligatoriska fält:</p>
                           <ul className="text-sm text-red-700 list-disc list-inside space-y-1">
-                            {!personnummerFilled && <li>Studentens personnummer (Praksisinformasjon)</li>}
                             {!akutmottagningFilled && <li>Akutmottagning (Praksisinformasjon)</li>}
                             {activeTerm === "midterm" ? (
                               <>
-                                {!selectedAssessment && <li>Bedömningskriterium 1 (Bedömningskriterier Akutsjukvård)</li>}
-                                {!selectedAssessment2 && <li>Bedömningskriterium 2 (Bedömningskriterier Akutsjukvård)</li>}
-                                {!selectedAssessment3 && <li>Bedömningskriterium 3 (Bedömningskriterier Akutsjukvård)</li>}
-                                {!selectedAssessment4 && <li>Bedömningskriterium 4 (Bedömningskriterier Akutsjukvård)</li>}
-                                {!datumFilled && <li>Datum (Oppsumering)</li>}
+                                {!selectedAssessment && <li>Bedömningskriterium 1 (Lärandemål Akutsjukvård)</li>}
+                                {!selectedAssessment2 && <li>Bedömningskriterium 2 (Lärandemål Akutsjukvård)</li>}
+                                {!selectedAssessment3 && <li>Bedömningskriterium 3 (Lärandemål Akutsjukvård)</li>}
+                                {!selectedAssessment4 && <li>Bedömningskriterium 4 (Lärandemål Akutsjukvård)</li>}
                               </>
                             ) : (
                               <>
-                                {!selectedAssessmentEnd && <li>Bedömningskriterium 1 (Bedömningskriterier Akutsjukvård)</li>}
-                                {!selectedAssessment2End && <li>Bedömningskriterium 2 (Bedömningskriterier Akutsjukvård)</li>}
-                                {!selectedAssessment3End && <li>Bedömningskriterium 3 (Bedömningskriterier Akutsjukvård)</li>}
-                                {!selectedAssessment4End && <li>Bedömningskriterium 4 (Bedömningskriterier Akutsjukvård)</li>}
-                                {!datumFilledEnd && <li>Datum (Oppsumering)</li>}
-                                {!fungeratBraEndFilled && <li>Eventuella kommentarer utöver det som framgår av Bedömningskriterierna (Oppsumering)</li>}
+                                {!selectedAssessmentEnd && <li>Bedömningskriterium 1 (Lärandemål Akutsjukvård)</li>}
+                                {!selectedAssessment2End && <li>Bedömningskriterium 2 (Lärandemål Akutsjukvård)</li>}
+                                {!selectedAssessment3End && <li>Bedömningskriterium 3 (Lärandemål Akutsjukvård)</li>}
+                                {!selectedAssessment4End && <li>Bedömningskriterium 4 (Lärandemål Akutsjukvård)</li>}
                               </>
                             )}
+                            {!signDatumNow && <li>Datum för signering (Signering)</li>}
                           </ul>
                         </div>
                       )}
@@ -1242,7 +1088,7 @@ export default function App() {
                           <p className="text-xs text-gray-600">Handledare</p>
                         </div>
                         <div className="pl-4">
-                          <p className="text-sm text-gray-700">2026-06-05</p>
+                          <p className="text-sm text-gray-700">{signDatumNow || "2026-06-05"}</p>
                         </div>
                       </div>
                     </div>
@@ -1251,7 +1097,7 @@ export default function App() {
 
                 {(activeRole === "student" || activeRole === "teacher") && (
                   <div className="mt-8 pt-8 border-t border-gray-200">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Studentens signatur</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Elevens signatur</h3>
                     {!supervisorSignedNow ? (
                       <p className="text-sm text-gray-500 italic">Väntar på handledarens signatur.</p>
                     ) : studentSignedNow ? (
@@ -1259,21 +1105,21 @@ export default function App() {
                         <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">AA</div>
                         <div>
                           <p className="text-sm font-semibold text-gray-900">Anna Andersson</p>
-                          <p className="text-xs text-gray-600">Student</p>
+                          <p className="text-xs text-gray-600">Elev</p>
                         </div>
-                        <div className="pl-4"><p className="text-sm text-gray-700">2026-06-05</p></div>
+                        <div className="pl-4"><p className="text-sm text-gray-700">{signDatumNow || "2026-06-05"}</p></div>
                       </div>
                     ) : activeRole === "teacher" ? (
-                      <p className="text-sm text-gray-500 italic">Ej signerad av student.</p>
+                      <p className="text-sm text-gray-500 italic">Ej signerad av elev.</p>
                     ) : (
-                      <p className="text-sm text-gray-500 italic">Använd knappen nedan för att signera.</p>
+                      <p className="text-sm text-gray-500 italic">Använd åtgärdsfältet nedan för att välja datum och signera.</p>
                     )}
                   </div>
                 )}
 
                 {(activeRole === "student" || activeRole === "teacher") && (
                   <div className="mt-8 pt-8 border-t border-gray-200">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">KI-representantens signatur</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Lärarens signatur</h3>
                     {!supervisorSignedNow ? (
                       <p className="text-sm text-gray-500 italic">Väntar på handledarens signatur.</p>
                     ) : teacherSignedNow ? (
@@ -1281,14 +1127,14 @@ export default function App() {
                         <div className="w-10 h-10 bg-emerald-600 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">LK</div>
                         <div>
                           <p className="text-sm font-semibold text-gray-900">Lena Karlsson</p>
-                          <p className="text-xs text-gray-600">KI-representant</p>
+                          <p className="text-xs text-gray-600">Lärare</p>
                         </div>
-                        <div className="pl-4"><p className="text-sm text-gray-700">2026-06-05</p></div>
+                        <div className="pl-4"><p className="text-sm text-gray-700">{signDatumNow || "2026-06-05"}</p></div>
                       </div>
                     ) : activeRole === "student" ? (
-                      <p className="text-sm text-gray-500 italic">Ej signerad av KI-representant.</p>
+                      <p className="text-sm text-gray-500 italic">Ej signerad av lärare.</p>
                     ) : (
-                      <p className="text-sm text-gray-500 italic">Använd knappen nedan för att signera.</p>
+                      <p className="text-sm text-gray-500 italic">Använd åtgärdsfältet nedan för att välja datum och signera.</p>
                     )}
                   </div>
                 )}
@@ -1353,51 +1199,24 @@ export default function App() {
           {/* Floating sign action */}
           {(readingMode || activeSection === "signering") && (
             <>
-              {activeRole === "supervisor" && !supervisorSignedNow && (
-                <div className="sticky bottom-6 flex justify-center pointer-events-none">
-                  <button
-                    onClick={handleSign}
-                    disabled={signDisabled}
-                    className={`pointer-events-auto px-8 py-3 font-semibold rounded-full shadow-lg transition-all ${!signDisabled ? "bg-blue-600 text-white hover:bg-blue-700 active:scale-95" : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}
-                  >
-                    Signera
-                  </button>
-                </div>
-              )}
-              {activeRole === "student" && supervisorSignedNow && !studentSignedNow && (
-                <div className="sticky bottom-6 flex justify-center pointer-events-none">
-                  <button
-                    onClick={() => {
-                      if (activeTerm === "midterm") {
-                        setIsStudentSigned(true);
-                      } else {
-                        setIsStudentSignedEnd(true);
-                      }
-                    }}
-                    disabled={signDisabled}
-                    className={`pointer-events-auto px-8 py-3 font-semibold rounded-full shadow-lg transition-all ${!signDisabled ? "bg-blue-600 text-white hover:bg-blue-700 active:scale-95" : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}
-                  >
-                    Signera som student
-                  </button>
-                </div>
-              )}
-              {activeRole === "teacher" && supervisorSignedNow && !teacherSignedNow && (
-                <div className="sticky bottom-6 flex justify-center pointer-events-none">
-                  <button
-                    onClick={() => {
-                      if (activeTerm === "midterm") {
-                        setIsTeacherSigned(true);
-                      } else {
-                        setIsTeacherSignedEnd(true);
-                      }
-                    }}
-                    disabled={signDisabled}
-                    className={`pointer-events-auto px-8 py-3 font-semibold rounded-full shadow-lg transition-all ${!signDisabled ? "bg-blue-600 text-white hover:bg-blue-700 active:scale-95" : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}
-                  >
-                    Signera som KI-representant
-                  </button>
-                </div>
-              )}
+              {activeRole === "supervisor" && !supervisorSignedNow &&
+                renderSignAction("Signera", handleSign)}
+              {activeRole === "student" && supervisorSignedNow && !studentSignedNow &&
+                renderSignAction("Signera som elev", () => {
+                  if (activeTerm === "midterm") {
+                    setIsStudentSigned(true);
+                  } else {
+                    setIsStudentSignedEnd(true);
+                  }
+                })}
+              {activeRole === "teacher" && supervisorSignedNow && !teacherSignedNow &&
+                renderSignAction("Signera som lärare", () => {
+                  if (activeTerm === "midterm") {
+                    setIsTeacherSigned(true);
+                  } else {
+                    setIsTeacherSignedEnd(true);
+                  }
+                })}
             </>
           )}
         </main>
@@ -1435,12 +1254,6 @@ export default function App() {
 
           {activeSection === "praksisinformasjon" ? (
             <div className="space-y-3">
-              <a href="#" onClick={scrollTo("personnummer")} className="flex items-start gap-2 group">
-                {rsIcon(personnummerFilled, true, true)}
-                <span className="text-sm text-blue-600 group-hover:underline">
-                  Studentens personnummer
-                </span>
-              </a>
               <a href="#" onClick={scrollTo("akutmottagning")} className="flex items-start gap-2 group">
                 {rsIcon(akutmottagningFilled, true, true)}
                 <span className="text-sm text-blue-600 group-hover:underline">
@@ -1468,12 +1281,6 @@ export default function App() {
             </div>
           ) : activeSection === "oppsumering" ? (
             <div className="space-y-3">
-              <a href="#" onClick={scrollTo("datum")} className="flex items-start gap-2 group">
-                {rsIcon(activeTerm === "midterm" ? datumFilled : datumFilledEnd, true)}
-                <span className="text-sm text-blue-600 group-hover:underline">
-                  Datum
-                </span>
-              </a>
               {activeTerm === "midterm" ? (
                 <>
                   <a href="#" onClick={scrollTo("fungeratBra")} className="flex items-start gap-2 group">
@@ -1492,7 +1299,7 @@ export default function App() {
               ) : (
                 <>
                   <a href="#" onClick={scrollTo("fungeratBra")} className="flex items-start gap-2 group">
-                    {rsIcon(fungeratBraEndFilled, true)}
+                    {rsIcon(fungeratBraEndFilled, false)}
                     <span className="text-sm text-blue-600 group-hover:underline line-clamp-2">
                       Eventuella kommentarer utöver det som framgår av Bedömningskriterierna
                     </span>

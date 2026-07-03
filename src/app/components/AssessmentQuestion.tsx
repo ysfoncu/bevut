@@ -23,9 +23,12 @@ export function AssessmentQuestion({
   midtermValue,
 }: AssessmentQuestionProps) {
   const [showMidterm, setShowMidterm] = useState(false);
+  // marker "O" == Halvtidsbedömning (midterm), "X" == Slutbedömning (endterm)
+  const isMidterm = marker === "O";
   return (
     <div>
       <div className="mb-6">
+        <p className="text-sm font-semibold text-gray-900 mb-1">Lärandemål</p>
         <h2 className="text-xl font-bold text-gray-900">
           {title}
           <span className="text-red-600 ml-2">*</span>
@@ -52,7 +55,7 @@ export function AssessmentQuestion({
       <div className="flex gap-4 items-stretch">
         <div className="flex-1 flex flex-col">
           <p className="text-sm font-semibold text-gray-700 mb-3">
-            För godkänt ska studenten:
+            {isMidterm ? "Betryggande utveckling" : "För godkänt ska studenten:"}
           </p>
           <div className="flex-1 flex">
             <button
@@ -81,7 +84,7 @@ export function AssessmentQuestion({
 
         <div className="flex-1 flex flex-col">
           <p className="text-sm font-semibold text-gray-700 mb-3">
-            Student uppfyller inte kriterierna för godkänd:
+            {isMidterm ? "Ej betryggande utveckling" : "Student uppfyller inte kriterierna för godkänd:"}
           </p>
           <div className="flex-1 flex">
             <button

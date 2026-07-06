@@ -6,10 +6,131 @@ import {
   CheckCircle2,
   Clock,
   Eye,
+  MoreVertical,
+  Pencil,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { AssessmentQuestion } from "./components/AssessmentQuestion";
 import { AssessmentSummary } from "./components/AssessmentSummary";
+
+// Assessment criteria are template-driven: admins can add/remove/edit them in template mode.
+interface Question {
+  id: number;
+  title: string;
+  godkandText: string;
+  underkandText: string;
+}
+
+const initialQuestions: Question[] = [
+  {
+    id: 1,
+    title: "Självständigt observera och bedöma patienters vårdbehov utifrån symtom och tecken på sjukdom och/eller skada",
+    godkandText: "Inhämta information genom ett strukturerat arbetssätt samt analyser och tolka patienters tillstånd utifrån händelse, sjukdomshistoria och vitala parametrar. Förstå och kunna tolka varningstecken",
+    underkandText: "Bristande teoretiska kunskaper och/eller oförmåga att på ett strukturerat arbetssätt inhämta viktig information utifrån händelse, sjukdomshistoria och vitala parametrar samt tolka och förstå innebörden i insamlad fakta",
+  },
+  {
+    id: 2,
+    title: "Självständigt bedöma och prioritera patienters omedelbara medicinska- och omvårdnadsbehov",
+    godkandText: "Identifiera omedelbara medicinska- och omvårdnadsbehov utifrån insamlad information, händelse, sjukdomshistoria och vitala parametrar",
+    underkandText: "Bristande teoretiska kunskaper och/eller oförmåga att identifiera medicinska och/eller omvårdnadsbehov utifrån insamlad information, händelse, sjukdomshistoria och vitala parametrar",
+  },
+  {
+    id: 3,
+    title: "Självständigt genomföra de åtgärder som patienters bedömda vårdbehov kräver utifrån patientens autonomi, värdighet och rättigheter",
+    godkandText: "Förmåga att identifiera och prioritera mellan olika omvårdnads- och medicinska åtgärder och fatta relevanta beslut utifrån individuella behov, medicinska tillstånd och vårdsituation, samt att genomföra och utvärdera effekten av åtgärderna",
+    underkandText: "Oförmåga att identifiera möjliga lösningar i omvårdnadssituationer med flera beståndsdelar eller bristande kunskap och/eller oförmåga att fatta beslut om, genomföra eller utvärdera effekten av omvårdnadsåtgärder i olika typer av situationer",
+  },
+  {
+    id: 4,
+    title: "Visa kunskap om gällande lagar, författningar samt säkerhetsföreskrifter inom akutsjukvården",
+    godkandText: "Visa förståelse för lagar som reglerar akutsjukvårdens verksamhet och kunna applicera dessa i specifika vårdsituationer",
+    underkandText: "Bristande förståelse för vilka legala förutsättningar som finns för att agera inom akutsjukvården i samband med specifika vårdsituationer",
+  },
+];
+
+// Every user-facing string in the form view, editable by admins in template mode.
+const defaultTexts: Record<string, string> = {
+  "topbar.bedomning": "BEDÖMNING",
+  "tab.halvtid": "Halvtidsbedömning",
+  "tab.slut": "Slutbedömning",
+  "btn.preview": "Förhandsvisning",
+  "nav.vfu": "VFU-Information",
+  "nav.larandemal": "Lärandemål Akutsjukvård",
+  "nav.sammanfattning": "Sammanfattning",
+  "nav.signering.halvtid": "Signering av halvtidsbedömning",
+  "nav.signering.slut": "Signering av slutbedömning",
+  "btn.avbryt": "Avbryt bedömningsprocess",
+  "btn.handlingsplan": "Aktivera handlingsplan",
+  "btn.prev": "Föregående",
+  "btn.next": "Nästa",
+  "vfu.title": "VFU-Information",
+  "vfu.kursLabel": "Kurs:",
+  "vfu.kurskodLabel": "Kurskod:",
+  "vfu.studentName": "Studentens namn:",
+  "vfu.enhet": "Vårdavdelning/enhet:",
+  "ph.enhet": "Enter location",
+  "vfu.planering": "Planering",
+  "vfu.period": "Genomförandeperiod av VFU, datum:",
+  "vfu.malsamtal": "Datum för målformuleringssamtal:",
+  "vfu.datumHalvtid": "Datum för halvtidsbedömning:",
+  "vfu.datumSlut": "Datum för slutbedömning:",
+  "txt.valgfritt": "(Valgfritt)",
+  "vfu.info1": "BeVut är utformat efter kursmål. För varje kursmål finns kriterier angivna för hur målen ska uppnås. Bedömningssamtalen ska vara studentdrivna.",
+  "vfu.info2": "Halvtidsbedömningen är ett formativt samtal där studentens styrkor och förbättringsområden ska diskuteras. Bedömningen utgår ifrån studentens nivå vid halvtid. Samtalet som görs ska stimulera fortsatt utveckling som bedöms vid slutbedömningen. Som betyg används Underkänd (U) och Godkänd (G) för den verksamhetsförlagda utbildningen. Samtliga kursmål ska vara godkända vid slutbedömningen inför den examinerande simuleringen som sker vid Högskolan i Borås.",
+  "vfu.info3": "Delarna får ej separeras från varandra. Dokumentet fylls i med bläck av handledare och student. Ifyllt formulär skickas till kursansvarig universitetsadjunkt snarast efter avslutad VFU:",
+  "status.halvtidTitle": "Halvtidsbedömning",
+  "status.slutTitle": "Slutbedömning",
+  "status.skapad": "Skapad",
+  "status.signHandledare": "Undertecknad av handledare",
+  "status.signLarare": "Undertecknad av lärare",
+  "status.signStudent": "Undertecknad av student",
+  "status.notSigned": "Inte undertecknad",
+  "vfu.slutInfo": "Slutbedömning kommer att vara synlig efter att alla roller har undertecknat halvtidsbedömning",
+  "q.topLabel": "Lärandemål",
+  "q.colPassMid": "Betryggande utveckling",
+  "q.colFailMid": "Ej betryggande utveckling",
+  "q.colPassEnd": "För godkänt ska studenten:",
+  "q.colFailEnd": "Student uppfyller inte kriterierna för godkänd:",
+  "q.showMidterm": "Visa gradering från halvtidsbedömning",
+  "q.hideMidterm": "Dölj gradering från halvtidsbedömning",
+  "gate.notVisible": "Gradings are not visible until the supervisor has signed.",
+  "opp.title": "Sammanfattning",
+  "opp.franvaro": "Frånvaro:",
+  "opp.dagar": "dagar",
+  "opp.ki": "Av KI sanktionerad uppgift",
+  "opp.sjukdom": "Sjukdom",
+  "opp.annat": "Annat",
+  "opp.braMid": "Detta har fungerat bra:",
+  "opp.braEnd": "Eventuella kommentarer utöver det som framgår av Bedömningskriterierna:",
+  "opp.tranaMer": "Detta behöver studenten träna mer på:",
+  "ph.textarea": "Enter text here...",
+  "sign.summaryTitle": "Sammanfattning - Lärandemål Akutsjukvård",
+  "summary.larandemal": "Lärandemål",
+  "summary.passMid": "Betryggande utveckling",
+  "summary.failMid": "Ej betryggande utveckling",
+  "summary.passEnd": "Godkänt",
+  "summary.failEnd": "Student uppfyller inte kriterierna för godkänd",
+  "sign.datumLabel": "Datum för signering",
+  "sign.btnSupervisor": "Signera",
+  "sign.btnStudent": "Signera som student",
+  "sign.btnTeacher": "Signera som lärare",
+  "sign.waiting": "Väntar på handledarens signatur. Bedömningen är inte tillgänglig ännu.",
+  "sign.waitingShort": "Väntar på handledarens signatur.",
+  "sign.signedBy": "Signerad av:",
+  "sign.studentSection": "Studentens signatur",
+  "sign.teacherSection": "Lärarens signatur",
+  "sign.ejStudent": "Ej signerad av student.",
+  "sign.ejLarare": "Ej signerad av lärare.",
+  "sign.useAction": "Använd åtgärdsfältet nedan för att välja datum och signera.",
+  "sign.checkPreview": "Kontrollera bedömningen i förhandsvisning uppe till höger innan du signerar",
+  "val.heading": "Vänligen fyll i alla obligatoriska fält:",
+  "val.enhet": "Akutmottagning (Praksisinformasjon)",
+  "val.datum": "Datum för signering (Signering)",
+  "banner.notSigned": "not signed by supervisor — you cannot see the gradings and cannot sign the form yet.",
+  "banner.pleaseSign": "Please review and sign the form. If not signed within 48 hours, the form will be signed automatically on your behalf.",
+};
 
 export default function App() {
   const [activeSection, setActiveSection] = useState("praksisinformasjon");
@@ -19,20 +140,21 @@ export default function App() {
   const mainScrollRef = useRef<HTMLElement>(null);
   const [activeRole, setActiveRole] = useState<"supervisor" | "student" | "teacher">("supervisor");
 
+  // Template (admin) edit mode
+  const [templateMode, setTemplateMode] = useState(false);
+  const [texts, setTexts] = useState<Record<string, string>>(defaultTexts);
+  const [editing, setEditing] = useState<{ value: string; save: (v: string) => void } | null>(null);
+  const [questions, setQuestions] = useState<Question[]>(initialQuestions);
+  const nextQuestionId = useRef(initialQuestions.length + 1);
+
   // Midterm states
-  const [selectedAssessment, setSelectedAssessment] = useState<string | null>(null);
-  const [selectedAssessment2, setSelectedAssessment2] = useState<string | null>(null);
-  const [selectedAssessment3, setSelectedAssessment3] = useState<string | null>(null);
-  const [selectedAssessment4, setSelectedAssessment4] = useState<string | null>(null);
+  const [midtermGrades, setMidtermGrades] = useState<Record<number, string | null>>({});
   const [isSigned, setIsSigned] = useState(false);
   const [fungeratBra, setFungeratBra] = useState("");
   const [tranaMer, setTranaMer] = useState("");
 
   // Endterm states
-  const [selectedAssessmentEnd, setSelectedAssessmentEnd] = useState<string | null>(null);
-  const [selectedAssessment2End, setSelectedAssessment2End] = useState<string | null>(null);
-  const [selectedAssessment3End, setSelectedAssessment3End] = useState<string | null>(null);
-  const [selectedAssessment4End, setSelectedAssessment4End] = useState<string | null>(null);
+  const [endtermGrades, setEndtermGrades] = useState<Record<number, string | null>>({});
   const [isSignedEnd, setIsSignedEnd] = useState(false);
   const [fungeratBraEnd, setFungeratBraEnd] = useState("");
   const [fungeratBraEndFilled, setFungeratBraEndFilled] = useState(false);
@@ -67,26 +189,72 @@ export default function App() {
     }
   }, [isStudentSigned, isTeacherSigned]);
 
+  // Template texts: look up a user-facing string by key.
+  const t = (key: string) => texts[key] ?? key;
+  // Open the edit popup for a template text key.
+  const editText = (key: string) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setEditing({ value: t(key), save: (v) => setTexts((prev) => ({ ...prev, [key]: v })) });
+  };
+  // Editable text: renders the plain string normally; in template mode it becomes click-to-edit.
+  const E = ({ k }: { k: string }) =>
+    templateMode ? (
+      <span
+        onClick={editText(k)}
+        title="Klicka för att redigera texten"
+        className="cursor-pointer rounded px-0.5 outline-dashed outline-1 outline-blue-400 hover:bg-blue-100"
+      >
+        {t(k)}
+      </span>
+    ) : (
+      <>{t(k)}</>
+    );
+
+  // Grades for the active term, keyed by question id.
+  const grades = activeTerm === "midterm" ? midtermGrades : endtermGrades;
+  const setGrade = (id: number, value: string | null) => {
+    if (activeTerm === "midterm") setMidtermGrades((prev) => ({ ...prev, [id]: value }));
+    else setEndtermGrades((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const editQuestionText =
+    (id: number, field: "title" | "godkandText" | "underkandText") => (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const question = questions.find((q) => q.id === id);
+      if (!question) return;
+      setEditing({
+        value: question[field],
+        save: (v) => setQuestions((prev) => prev.map((q) => (q.id === id ? { ...q, [field]: v } : q))),
+      });
+    };
+  const addQuestion = () => {
+    const id = nextQuestionId.current++;
+    setQuestions((prev) => [
+      ...prev,
+      {
+        id,
+        title: "Nytt lärandemål",
+        godkandText: "Beskriv kriterierna för godkänd här",
+        underkandText: "Beskriv kriterierna för underkänd här",
+      },
+    ]);
+  };
+  const removeQuestion = (id: number) => setQuestions((prev) => prev.filter((q) => q.id !== id));
+
   const validateAllFields = () => {
     const errors = [];
     if (!akutmottagningFilled) errors.push("praksisinformasjon");
-
-    if (activeTerm === "midterm") {
-      if (!selectedAssessment) errors.push("bedomningskriterier");
-      if (!selectedAssessment2) errors.push("bedomningskriterier");
-      if (!selectedAssessment3) errors.push("bedomningskriterier");
-      if (!selectedAssessment4) errors.push("bedomningskriterier");
-    } else {
-      if (!selectedAssessmentEnd) errors.push("bedomningskriterier");
-      if (!selectedAssessment2End) errors.push("bedomningskriterier");
-      if (!selectedAssessment3End) errors.push("bedomningskriterier");
-      if (!selectedAssessment4End) errors.push("bedomningskriterier");
-    }
+    questions.forEach((q) => {
+      if (!grades[q.id]) errors.push("bedomningskriterier");
+    });
     if (!(activeTerm === "midterm" ? signDatum : signDatumEnd)) errors.push("signering");
     return errors;
   };
 
   const handleSign = () => {
+    if (templateMode) return;
     const errors = validateAllFields();
     if (errors.length > 0) {
       setShowValidationErrors(true);
@@ -144,10 +312,10 @@ export default function App() {
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
   // Signature action card: pick a signature date, then sign. Shared by all three roles.
-  const signActionCard = (label: string, onClick: () => void) => (
+  const signActionCard = (label: React.ReactNode, onClick: () => void) => (
     <div className="bg-white rounded-full shadow-lg border border-gray-200 pl-4 pr-2 py-2 flex items-center gap-3">
       <label htmlFor="signDatum" className="text-sm font-medium text-gray-700 whitespace-nowrap">
-        Datum för signering<span className="text-red-600 ml-0.5">*</span>
+        <E k="sign.datumLabel" /><span className="text-red-600 ml-0.5">*</span>
       </label>
       <input
         type="date"
@@ -160,11 +328,13 @@ export default function App() {
         }`}
       />
       <button
-        onClick={onClick}
-        disabled={signBtnDisabled}
-        title={!signDatumNow ? "Välj ett datum för att kunna signera" : undefined}
+        onClick={() => {
+          if (!templateMode) onClick();
+        }}
+        disabled={!templateMode && signBtnDisabled}
+        title={!signDatumNow && !templateMode ? "Välj ett datum för att kunna signera" : undefined}
         className={`px-6 py-2 font-semibold rounded-full transition-all ${
-          !signBtnDisabled
+          templateMode || !signBtnDisabled
             ? "bg-blue-600 text-white hover:bg-blue-700 active:scale-95"
             : "bg-gray-300 text-gray-500 cursor-not-allowed"
         }`}
@@ -175,15 +345,17 @@ export default function App() {
   );
   // The sign action for the active role (or null if it's not this role's turn / already signed).
   const currentSignAction = () => {
+    // In template mode always show the card so its texts can be edited; signing itself is disabled.
+    if (templateMode) return signActionCard(<E k="sign.btnSupervisor" />, () => {});
     if (activeRole === "supervisor" && !supervisorSignedNow)
-      return signActionCard("Signera", handleSign);
+      return signActionCard(<E k="sign.btnSupervisor" />, handleSign);
     if (activeRole === "student" && supervisorSignedNow && !studentSignedNow)
-      return signActionCard("Signera som student", () => {
+      return signActionCard(<E k="sign.btnStudent" />, () => {
         if (activeTerm === "midterm") setIsStudentSigned(true);
         else setIsStudentSignedEnd(true);
       });
     if (activeRole === "teacher" && supervisorSignedNow && !teacherSignedNow)
-      return signActionCard("Signera som lärare", () => {
+      return signActionCard(<E k="sign.btnTeacher" />, () => {
         if (activeTerm === "midterm") setIsTeacherSigned(true);
         else setIsTeacherSignedEnd(true);
       });
@@ -208,10 +380,7 @@ export default function App() {
         optionalMissing = !malformuleringssamtal || !halvtidsbedomning || !slutbedomning;
         break;
       case "bedomningskriterier":
-        mandatoryMissing =
-          activeTerm === "midterm"
-            ? !(selectedAssessment && selectedAssessment2 && selectedAssessment3 && selectedAssessment4)
-            : !(selectedAssessmentEnd && selectedAssessment2End && selectedAssessment3End && selectedAssessment4End);
+        mandatoryMissing = !questions.every((q) => grades[q.id]);
         break;
       case "oppsumering":
         optionalMissing = activeTerm === "midterm" ? !fungeratBra || !tranaMer : !fungeratBraEnd;
@@ -265,6 +434,38 @@ export default function App() {
           </div>
         </div>
       )}
+      {/* Template text edit popup */}
+      {editing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">Redigera text</h2>
+            <textarea
+              autoFocus
+              rows={4}
+              value={editing.value}
+              onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical"
+            />
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => setEditing(null)}
+                className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Avbryt
+              </button>
+              <button
+                onClick={() => {
+                  editing.save(editing.value);
+                  setEditing(null);
+                }}
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700"
+              >
+                Spara
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -279,6 +480,22 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              setTemplateMode(!templateMode);
+              setReadingMode(false);
+              setEditing(null);
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              templateMode
+                ? "bg-purple-600 text-white"
+                : "border border-gray-300 text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            <Pencil className="w-4 h-4" />
+            Template
+          </button>
+          <div className="w-px h-6 bg-gray-300" />
           {(["supervisor", "student", "teacher"] as const).map((role) => (
             <button
               key={role}
@@ -295,48 +512,79 @@ export default function App() {
         </div>
       </header>
 
+      {/* Template mode helper bar */}
+      {templateMode && (
+        <div className="bg-purple-50 border-b border-purple-200 px-6 py-2 text-sm text-purple-800">
+          Template-läge: klicka på en markerad text för att redigera den. Använd ⋮ i vänstermenyn och
+          vid flikarna för att redigera navigeringstexter. Lärandemål läggs till, redigeras och tas
+          bort på sidan Lärandemål.
+        </div>
+      )}
+
       {/* Page Title with Tabs */}
       <div className="bg-white border-b border-gray-200">
         <div className="py-4 flex items-center">
           <div className="w-60 px-6 flex items-center gap-2">
             <ChevronLeft className="w-4 h-4 text-gray-700" />
             <span className="text-sm font-medium text-gray-700">
-              BEDÖMNING
+              <E k="topbar.bedomning" />
             </span>
           </div>
           <div className="flex-1 px-8 flex gap-4 items-center">
             <div className="flex gap-4">
-              <button
-                onClick={() => !readingMode && setActiveTerm("midterm")}
-                disabled={readingMode}
-                className={`font-bold transition-colors ${
-                  readingMode
-                    ? "text-gray-300 cursor-default"
-                    : activeTerm === "midterm"
-                    ? "underline"
-                    : "text-gray-500"
-                }`}
-              >
-                Halvtidsbedömning
-              </button>
-              {endtermCreated && (
+              <div className="flex items-center gap-1">
                 <button
-                  onClick={() => !readingMode && setActiveTerm("endterm")}
+                  onClick={() => !readingMode && setActiveTerm("midterm")}
                   disabled={readingMode}
                   className={`font-bold transition-colors ${
                     readingMode
                       ? "text-gray-300 cursor-default"
-                      : activeTerm === "endterm"
+                      : activeTerm === "midterm"
                       ? "underline"
                       : "text-gray-500"
                   }`}
                 >
-                  Slutbedömning
+                  {t("tab.halvtid")}
                 </button>
+                {templateMode && (
+                  <button
+                    onClick={editText("tab.halvtid")}
+                    title="Redigera text"
+                    className="p-1 text-gray-400 hover:text-gray-700"
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              {endtermCreated && (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => !readingMode && setActiveTerm("endterm")}
+                    disabled={readingMode}
+                    className={`font-bold transition-colors ${
+                      readingMode
+                        ? "text-gray-300 cursor-default"
+                        : activeTerm === "endterm"
+                        ? "underline"
+                        : "text-gray-500"
+                    }`}
+                  >
+                    {t("tab.slut")}
+                  </button>
+                  {templateMode && (
+                    <button
+                      onClick={editText("tab.slut")}
+                      title="Redigera text"
+                      className="p-1 text-gray-400 hover:text-gray-700"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               )}
             </div>
             <button
-              onClick={() => setReadingMode(!readingMode)}
+              onClick={() => !templateMode && setReadingMode(!readingMode)}
               className={`ml-auto flex items-center gap-2 px-4 py-2 text-sm rounded-lg border transition-colors ${
                 readingMode
                   ? "bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
@@ -344,7 +592,7 @@ export default function App() {
               }`}
             >
               <Eye className="w-4 h-4" />
-              Förhandsvisning
+              <E k="btn.preview" />
             </button>
           </div>
         </div>
@@ -359,53 +607,43 @@ export default function App() {
         <aside className={`w-60 bg-white border-r border-gray-200 flex flex-col overflow-auto${readingMode ? " hidden" : ""}`}>
           <nav className="flex-1 p-4">
             <ul className="space-y-2">
-              <li>
-                <button
-                  onClick={() => setActiveSection("praksisinformasjon")}
-                  className={navItemClass("praksisinformasjon")}
-                >
-                  {statusDot("praksisinformasjon")}
-                  <span className="text-left">VFU-Information</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => setActiveSection("bedomningskriterier")}
-                  className={navItemClass("bedomningskriterier")}
-                >
-                  {statusDot("bedomningskriterier")}
-                  <span className="text-left">Lärandemål Akutsjukvård</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => setActiveSection("oppsumering")}
-                  className={navItemClass("oppsumering")}
-                >
-                  {statusDot("oppsumering")}
-                  <span className="text-left">Sammanfattning</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => setActiveSection("signering")}
-                  className={navItemClass("signering")}
-                >
-                  {statusDot("signering")}
-                  <span className="text-left">
-                    {activeTerm === "midterm" ? "Signering av halvtidsbedömning" : "Signering av slutbedömning"}
-                  </span>
-                </button>
-              </li>
+              {[
+                { section: "praksisinformasjon", key: "nav.vfu" },
+                { section: "bedomningskriterier", key: "nav.larandemal" },
+                { section: "oppsumering", key: "nav.sammanfattning" },
+                {
+                  section: "signering",
+                  key: activeTerm === "midterm" ? "nav.signering.halvtid" : "nav.signering.slut",
+                },
+              ].map(({ section, key }) => (
+                <li key={section} className="flex items-center gap-1">
+                  <button
+                    onClick={() => setActiveSection(section)}
+                    className={`${navItemClass(section)} flex-1 min-w-0`}
+                  >
+                    {statusDot(section)}
+                    <span className="text-left">{t(key)}</span>
+                  </button>
+                  {templateMode && (
+                    <button
+                      onClick={editText(key)}
+                      title="Redigera text"
+                      className="p-1 text-gray-400 hover:text-gray-700 flex-shrink-0"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                  )}
+                </li>
+              ))}
             </ul>
 
             {activeRole !== "student" && (
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <button className="w-full px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
-                  Avbryt bedömningsprocess
+                  <E k="btn.avbryt" />
                 </button>
                 <button className="w-full mt-2 px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
-                  Aktivera handlingsplan
+                  <E k="btn.handlingsplan" />
                 </button>
               </div>
             )}
@@ -415,10 +653,12 @@ export default function App() {
         {/* Main Content */}
         <main ref={mainScrollRef} className="flex-1 overflow-auto bg-gray-50 relative">
           <div className="px-8 py-8">
-            {activeRole === "supervisor" && !readingMode && (() => {
-              const midtermItems = [akutmottagningFilled, !!selectedAssessment, !!selectedAssessment2, !!selectedAssessment3, !!selectedAssessment4, isSigned];
-              const endtermItems = [akutmottagningFilled, !!selectedAssessmentEnd, !!selectedAssessment2End, !!selectedAssessment3End, !!selectedAssessment4End, isSignedEnd];
-              const items = activeTerm === "midterm" ? midtermItems : endtermItems;
+            {activeRole === "supervisor" && !readingMode && !templateMode && (() => {
+              const items = [
+                akutmottagningFilled,
+                ...questions.map((q) => !!grades[q.id]),
+                activeTerm === "midterm" ? isSigned : isSignedEnd,
+              ];
               const completed = items.filter(Boolean).length;
               const total = items.length;
               const pct = Math.round((completed / total) * 100);
@@ -440,7 +680,7 @@ export default function App() {
                 <svg className="w-5 h-5 text-yellow-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
-                <p className="text-sm text-yellow-800"><span className="font-semibold">Halvtidsbedömning</span> not signed by supervisor — you cannot see the Halvtidsbedömning gradings and cannot sign the form yet.</p>
+                <p className="text-sm text-yellow-800"><span className="font-semibold">{t("tab.halvtid")}</span> <E k="banner.notSigned" /></p>
               </div>
             )}
             {(activeRole === "student" || activeRole === "teacher") && endtermCreated && !isSignedEnd && activeTerm !== "midterm" && (
@@ -448,7 +688,7 @@ export default function App() {
                 <svg className="w-5 h-5 text-yellow-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
-                <p className="text-sm text-yellow-800"><span className="font-semibold">Slutbedömning</span> not signed by supervisor — you cannot see the Slutbedömning gradings and cannot sign the form yet.</p>
+                <p className="text-sm text-yellow-800"><span className="font-semibold">{t("tab.slut")}</span> <E k="banner.notSigned" /></p>
               </div>
             )}
             {activeRole === "student" && isSigned && !isStudentSigned && (
@@ -456,7 +696,7 @@ export default function App() {
                 <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                 </svg>
-                <p className="text-sm text-blue-800"><span className="font-semibold">Halvtidsbedömning:</span> Please review and sign the form. If not signed within <span className="font-semibold">48 hours</span>, the form will be signed automatically on your behalf.</p>
+                <p className="text-sm text-blue-800"><span className="font-semibold">{t("tab.halvtid")}:</span> <E k="banner.pleaseSign" /></p>
               </div>
             )}
             {activeRole === "student" && isSignedEnd && !isStudentSignedEnd && (
@@ -464,7 +704,7 @@ export default function App() {
                 <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                 </svg>
-                <p className="text-sm text-blue-800"><span className="font-semibold">Slutbedömning:</span> Please review and sign the form. If not signed within <span className="font-semibold">48 hours</span>, the form will be signed automatically on your behalf.</p>
+                <p className="text-sm text-blue-800"><span className="font-semibold">{t("tab.slut")}:</span> <E k="banner.pleaseSign" /></p>
               </div>
             )}
             {activeRole === "teacher" && isSigned && !isTeacherSigned && (
@@ -472,7 +712,7 @@ export default function App() {
                 <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                 </svg>
-                <p className="text-sm text-blue-800"><span className="font-semibold">Halvtidsbedömning:</span> Please review and sign the form. If not signed within <span className="font-semibold">48 hours</span>, the form will be signed automatically on your behalf.</p>
+                <p className="text-sm text-blue-800"><span className="font-semibold">{t("tab.halvtid")}:</span> <E k="banner.pleaseSign" /></p>
               </div>
             )}
             {activeRole === "teacher" && isSignedEnd && !isTeacherSignedEnd && (
@@ -480,7 +720,7 @@ export default function App() {
                 <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                 </svg>
-                <p className="text-sm text-blue-800"><span className="font-semibold">Slutbedömning:</span> Please review and sign the form. If not signed within <span className="font-semibold">48 hours</span>, the form will be signed automatically on your behalf.</p>
+                <p className="text-sm text-blue-800"><span className="font-semibold">{t("tab.slut")}:</span> <E k="banner.pleaseSign" /></p>
               </div>
             )}
             {readingMode ? (
@@ -540,28 +780,13 @@ export default function App() {
                         </tr>
                       </thead>
                       <tbody>
-                        {([
-                          {
-                            label: "Självständigt observera och bedöma patienters vårdbehov utifrån symtom och tecken på sjukdom och/eller skada",
-                            halvtid: selectedAssessment,
-                            slut: selectedAssessmentEnd,
-                          },
-                          {
-                            label: "Självständigt bedöma och prioritera patienters omedelbara medicinska- och omvårdnadsbehov",
-                            halvtid: selectedAssessment2,
-                            slut: selectedAssessment2End,
-                          },
-                          {
-                            label: "Självständigt genomföra de åtgärder som patienters bedömda vårdbehov kräver utifrån patientens autonomi, värdighet och rättigheter",
-                            halvtid: selectedAssessment3,
-                            slut: selectedAssessment3End,
-                          },
-                          {
-                            label: "Visa kunskap om gällande lagar, författningar samt säkerhetsföreskrifter inom akutsjukvården",
-                            halvtid: selectedAssessment4,
-                            slut: selectedAssessment4End,
-                          },
-                        ] as { label: string; halvtid: string | null; slut: string | null }[]).map((row, i) => (
+                        {questions
+                          .map((q) => ({
+                            label: q.title,
+                            halvtid: midtermGrades[q.id] ?? null,
+                            slut: endtermGrades[q.id] ?? null,
+                          }))
+                          .map((row, i) => (
                           <tr key={i} className="hover:bg-gray-50">
                             <td className="border border-gray-300 px-4 py-3 text-sm text-gray-900">
                               {row.label}
@@ -721,21 +946,21 @@ export default function App() {
               {activeSection === "praksisinformasjon" ? (
               /* Praksisinformasjon Form */
               <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-8">
-                <h1 className="text-2xl font-bold text-gray-900 mb-6 pb-2 border-b-2 border-gray-300">VFU-Information</h1>
+                <h1 className="text-2xl font-bold text-gray-900 mb-6 pb-2 border-b-2 border-gray-300"><E k="vfu.title" /></h1>
 
                 <div className="mb-6 space-y-1">
                   <p className="text-sm text-gray-900">
-                    <span className="font-semibold">Kurs:</span> Akutsjukvård med verksamhetsförlagd utbildning, 7,5 hp
+                    <span className="font-semibold"><E k="vfu.kursLabel" /></span> Akutsjukvård med verksamhetsförlagd utbildning, 7,5 hp
                   </p>
                   <p className="text-sm text-gray-900">
-                    <span className="font-semibold">Kurskod:</span> B2KS01
+                    <span className="font-semibold"><E k="vfu.kurskodLabel" /></span> B2KS01
                   </p>
                 </div>
 
                 <form className="space-y-6">
                   <div>
                     <label htmlFor="studentName" className="block text-sm font-medium text-gray-900 mb-2">
-                      Studentens namn:
+                      <E k="vfu.studentName" />
                     </label>
                     <input
                       type="text"
@@ -748,14 +973,15 @@ export default function App() {
 
                   <div>
                     <label htmlFor="akutmottagning" className="block text-sm font-medium text-gray-900 mb-2">
-                      Vårdavdelning/enhet:<span className="text-red-600 ml-1">*</span>
+                      <E k="vfu.enhet" /><span className="text-red-600 ml-1">*</span>
                     </label>
                     <input
                       type="text"
                       id="akutmottagning"
-                      placeholder="Enter location"
+                      placeholder={t("ph.enhet")}
                       value={akutmottagning}
-                      readOnly={activeRole === "student"}
+                      readOnly={activeRole === "student" || templateMode}
+                      onClick={templateMode ? editText("ph.enhet") : undefined}
                       onChange={(e) => {
                         setAkutmottagning(e.target.value);
                         setAkutmottagningFilled(!!e.target.value);
@@ -765,12 +991,12 @@ export default function App() {
                   </div>
                 </form>
 
-                <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4 pb-2 border-b-2 border-gray-300">Planering</h2>
+                <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4 pb-2 border-b-2 border-gray-300"><E k="vfu.planering" /></h2>
 
                 <form className="space-y-6 mt-6">
                   <div>
                     <label htmlFor="genomforandeperiod" className="block text-sm font-medium text-gray-900 mb-2">
-                      Genomförandeperiod av VFU, datum:
+                      <E k="vfu.period" />
                     </label>
                     <input
                       type="text"
@@ -783,7 +1009,7 @@ export default function App() {
 
                   <div>
                     <label htmlFor="malformuleringssamtal" className="block text-sm font-medium text-gray-900 mb-2">
-                      Datum för målformuleringssamtal: <span className="text-gray-500 font-normal">(Valgfritt)</span>
+                      <E k="vfu.malsamtal" /> <span className="text-gray-500 font-normal"><E k="txt.valgfritt" /></span>
                     </label>
                     <input
                       type="date"
@@ -797,7 +1023,7 @@ export default function App() {
 
                   <div>
                     <label htmlFor="halvtidsbedomning" className="block text-sm font-medium text-gray-900 mb-2">
-                      Datum för halvtidsbedömning: <span className="text-gray-500 font-normal">(Valgfritt)</span>
+                      <E k="vfu.datumHalvtid" /> <span className="text-gray-500 font-normal"><E k="txt.valgfritt" /></span>
                     </label>
                     <input
                       type="date"
@@ -811,7 +1037,7 @@ export default function App() {
 
                   <div>
                     <label htmlFor="slutbedomning" className="block text-sm font-medium text-gray-900 mb-2">
-                      Datum för slutbedömning: <span className="text-gray-500 font-normal">(Valgfritt)</span>
+                      <E k="vfu.datumSlut" /> <span className="text-gray-500 font-normal"><E k="txt.valgfritt" /></span>
                     </label>
                     <input
                       type="date"
@@ -825,67 +1051,54 @@ export default function App() {
                 </form>
 
                 <div className="text-sm text-gray-700 leading-relaxed space-y-3 mt-6">
-                  <p>
-                    BeVut är utformat efter kursmål. För varje kursmål finns kriterier angivna för hur målen ska
-                    uppnås. Bedömningssamtalen ska vara studentdrivna.
-                  </p>
-                  <p>
-                    Halvtidsbedömningen är ett formativt samtal där studentens styrkor och förbättringsområden
-                    ska diskuteras. Bedömningen utgår ifrån studentens nivå vid halvtid. Samtalet som görs ska
-                    stimulera fortsatt utveckling som bedöms vid slutbedömningen. Som betyg används Underkänd
-                    (U) och Godkänd (G) för den verksamhetsförlagda utbildningen. Samtliga kursmål ska vara
-                    godkända vid slutbedömningen inför den examinerande simuleringen som sker vid Högskolan i
-                    Borås.
-                  </p>
-                  <p>
-                    Delarna får ej separeras från varandra. Dokumentet fylls i med bläck av handledare och student.
-                    Ifyllt formulär skickas till kursansvarig universitetsadjunkt snarast efter avslutad VFU:
-                  </p>
+                  <p><E k="vfu.info1" /></p>
+                  <p><E k="vfu.info2" /></p>
+                  <p><E k="vfu.info3" /></p>
                 </div>
 
                 {/* Form status legend */}
                 <div className="mt-8 pt-6 border-t border-gray-200 space-y-6">
                   {endtermCreated && (
                     <div>
-                      <p className="text-sm font-semibold text-gray-900 mb-3">Slutbedömning</p>
+                      <p className="text-sm font-semibold text-gray-900 mb-3"><E k="status.slutTitle" /></p>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Skapad</span>
+                          <span className="text-gray-600"><E k="status.skapad" /></span>
                           <span className="text-gray-900">2026-06-05</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Undertecknad av handledare</span>
-                          {isSignedEnd ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Inte undertecknad</span>}
+                          <span className="text-gray-600"><E k="status.signHandledare" /></span>
+                          {isSignedEnd ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium"><E k="status.notSigned" /></span>}
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Undertecknad av lärare</span>
-                          {isTeacherSignedEnd ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Inte undertecknad</span>}
+                          <span className="text-gray-600"><E k="status.signLarare" /></span>
+                          {isTeacherSignedEnd ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium"><E k="status.notSigned" /></span>}
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Undertecknad av student</span>
-                          {isStudentSignedEnd ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Inte undertecknad</span>}
+                          <span className="text-gray-600"><E k="status.signStudent" /></span>
+                          {isStudentSignedEnd ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium"><E k="status.notSigned" /></span>}
                         </div>
                       </div>
                     </div>
                   )}
                   <div>
-                    <p className="text-sm font-semibold text-gray-900 mb-3">Halvtidsbedömning</p>
+                    <p className="text-sm font-semibold text-gray-900 mb-3"><E k="status.halvtidTitle" /></p>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Skapad</span>
+                        <span className="text-gray-600"><E k="status.skapad" /></span>
                         <span className="text-gray-900">2026-04-01</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Undertecknad av handledare</span>
-                        {isSigned ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Inte undertecknad</span>}
+                        <span className="text-gray-600"><E k="status.signHandledare" /></span>
+                        {isSigned ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium"><E k="status.notSigned" /></span>}
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Undertecknad av lärare</span>
-                        {isTeacherSigned ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Inte undertecknad</span>}
+                        <span className="text-gray-600"><E k="status.signLarare" /></span>
+                        {isTeacherSigned ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium"><E k="status.notSigned" /></span>}
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Undertecknad av student</span>
-                        {isStudentSigned ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium">Inte undertecknad</span>}
+                        <span className="text-gray-600"><E k="status.signStudent" /></span>
+                        {isStudentSigned ? <span className="text-gray-900">2026-06-05</span> : <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium"><E k="status.notSigned" /></span>}
                       </div>
                     </div>
                   </div>
@@ -896,26 +1109,26 @@ export default function App() {
                     <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                     </svg>
-                    <p className="text-sm text-blue-800">Slutbedömning kommer att vara synlig efter att alla roller har undertecknat halvtidsbedömning</p>
+                    <p className="text-sm text-blue-800"><E k="vfu.slutInfo" /></p>
                   </div>
                 )}
               </div>
             ) : activeSection === "oppsumering" ? (
               /* Oppsumering Page */
-              (activeRole === "student" || activeRole === "teacher") && !supervisorSignedNow ? (
+              !templateMode && (activeRole === "student" || activeRole === "teacher") && !supervisorSignedNow ? (
                 <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-8 text-center">
-                  <p className="text-gray-500 text-sm">Gradings are not visible until the supervisor has signed.</p>
+                  <p className="text-gray-500 text-sm">{t("gate.notVisible")}</p>
                 </div>
               ) : (
               <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-8">
-                <h1 className="text-2xl font-bold text-gray-900 mb-6">Sammanfattning</h1>
+                <h1 className="text-2xl font-bold text-gray-900 mb-6"><E k="opp.title" /></h1>
 
                 <form className="space-y-6">
 
                   {activeTerm === "endterm" && (
                     <div>
                       <label htmlFor="franvaroDagar" className="block text-sm font-medium text-gray-900 mb-2">
-                        Frånvaro:
+                        <E k="opp.franvaro" />
                       </label>
                       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
                         <div className="flex items-center gap-2">
@@ -928,7 +1141,7 @@ export default function App() {
                             placeholder="0"
                             className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
-                          <span className="text-sm text-gray-900">dagar</span>
+                          <span className="text-sm text-gray-900"><E k="opp.dagar" /></span>
                         </div>
                         <label className="flex items-center gap-2 text-sm text-gray-900">
                           <input
@@ -937,7 +1150,7 @@ export default function App() {
                             onChange={(e) => setFranvaroKI(e.target.checked)}
                             className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                           />
-                          Av KI sanktionerad uppgift
+                          <E k="opp.ki" />
                         </label>
                         <label className="flex items-center gap-2 text-sm text-gray-900">
                           <input
@@ -946,7 +1159,7 @@ export default function App() {
                             onChange={(e) => setFranvaroSjukdom(e.target.checked)}
                             className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                           />
-                          Sjukdom
+                          <E k="opp.sjukdom" />
                         </label>
                         <label className="flex items-center gap-2 text-sm text-gray-900">
                           <input
@@ -955,7 +1168,7 @@ export default function App() {
                             onChange={(e) => setFranvaroAnnat(e.target.checked)}
                             className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                           />
-                          Annat
+                          <E k="opp.annat" />
                         </label>
                       </div>
                     </div>
@@ -964,15 +1177,17 @@ export default function App() {
                   <div>
                     <label htmlFor="fungeratBra" className="block text-sm font-medium text-gray-900 mb-2">
                       {activeTerm === "midterm" ? (
-                        <>Detta har fungerat bra: <span className="text-gray-500 font-normal">(Valgfritt)</span></>
+                        <><E k="opp.braMid" /> <span className="text-gray-500 font-normal"><E k="txt.valgfritt" /></span></>
                       ) : (
-                        <>Eventuella kommentarer utöver det som framgår av Bedömningskriterierna: <span className="text-gray-500 font-normal">(Valgfritt)</span></>
+                        <><E k="opp.braEnd" /> <span className="text-gray-500 font-normal"><E k="txt.valgfritt" /></span></>
                       )}
                     </label>
                     <textarea
                       id="fungeratBra"
                       rows={5}
                       value={activeTerm === "midterm" ? fungeratBra : fungeratBraEnd}
+                      readOnly={templateMode}
+                      onClick={templateMode ? editText("ph.textarea") : undefined}
                       onChange={(e) => {
                         if (activeTerm === "midterm") {
                           setFungeratBra(e.target.value);
@@ -982,22 +1197,24 @@ export default function App() {
                         }
                       }}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical"
-                      placeholder="Enter text here..."
+                      placeholder={t("ph.textarea")}
                     ></textarea>
                   </div>
 
                   {activeTerm === "midterm" && (
                     <div>
                       <label htmlFor="tranaMer" className="block text-sm font-medium text-gray-900 mb-2">
-                        Detta behöver studenten träna mer på: <span className="text-gray-500 font-normal">(Valgfritt)</span>
+                        <E k="opp.tranaMer" /> <span className="text-gray-500 font-normal"><E k="txt.valgfritt" /></span>
                       </label>
                       <textarea
                         id="tranaMer"
                         rows={5}
                         value={tranaMer}
+                        readOnly={templateMode}
+                        onClick={templateMode ? editText("ph.textarea") : undefined}
                         onChange={(e) => setTranaMer(e.target.value)}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical"
-                        placeholder="Enter text here..."
+                        placeholder={t("ph.textarea")}
                       ></textarea>
                     </div>
                   )}
@@ -1006,100 +1223,115 @@ export default function App() {
               )
             ) : activeSection === "bedomningskriterier" ? (
               /* Bedömningskriterier Akutsjukvård Page */
-              (activeRole === "student" || activeRole === "teacher") && !supervisorSignedNow ? (
+              !templateMode && (activeRole === "student" || activeRole === "teacher") && !supervisorSignedNow ? (
                 <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-8 text-center">
-                  <p className="text-gray-500 text-sm">Gradings are not visible until the supervisor has signed.</p>
+                  <p className="text-gray-500 text-sm">{t("gate.notVisible")}</p>
                 </div>
               ) : (
               <div className="space-y-6">
-                <div id="assessment-1" className="bg-white rounded-lg border border-gray-200 shadow-sm p-8">
-                  <AssessmentQuestion
-                    title="Självständigt observera och bedöma patienters vårdbehov utifrån symtom och tecken på sjukdom och/eller skada"
-                    godkandText="Inhämta information genom ett strukturerat arbetssätt samt analyser och tolka patienters tillstånd utifrån händelse, sjukdomshistoria och vitala parametrar. Förstå och kunna tolka varningstecken"
-                    underkandText="Bristande teoretiska kunskaper och/eller oförmåga att på ett strukturerat arbetssätt inhämta viktig information utifrån händelse, sjukdomshistoria och vitala parametrar samt tolka och förstå innebörden i insamlad fakta"
-                    selectedValue={activeTerm === "midterm" ? selectedAssessment : selectedAssessmentEnd}
-                    onSelect={activeTerm === "midterm" ? setSelectedAssessment : setSelectedAssessmentEnd}
-                    readOnly={supervisorSignedNow || activeRole !== "supervisor"}
-                    midtermValue={activeTerm === "endterm" ? selectedAssessment : undefined}
-                    marker={activeTerm === "midterm" ? "O" : "X"}
-                  />
-                </div>
-
-                <div id="assessment-2" className="bg-white rounded-lg border border-gray-200 shadow-sm p-8">
-                  <AssessmentQuestion
-                    title="Självständigt bedöma och prioritera patienters omedelbara medicinska- och omvårdnadsbehov"
-                    godkandText="Identifiera omedelbara medicinska- och omvårdnadsbehov utifrån insamlad information, händelse, sjukdomshistoria och vitala parametrar"
-                    underkandText="Bristande teoretiska kunskaper och/eller oförmåga att identifiera medicinska och/eller omvårdnadsbehov utifrån insamlad information, händelse, sjukdomshistoria och vitala parametrar"
-                    selectedValue={activeTerm === "midterm" ? selectedAssessment2 : selectedAssessment2End}
-                    onSelect={activeTerm === "midterm" ? setSelectedAssessment2 : setSelectedAssessment2End}
-                    readOnly={supervisorSignedNow || activeRole !== "supervisor"}
-                    midtermValue={activeTerm === "endterm" ? selectedAssessment2 : undefined}
-                    marker={activeTerm === "midterm" ? "O" : "X"}
-                  />
-                </div>
-
-                <div id="assessment-3" className="bg-white rounded-lg border border-gray-200 shadow-sm p-8">
-                  <AssessmentQuestion
-                    title="Självständigt genomföra de åtgärder som patienters bedömda vårdbehov kräver utifrån patientens autonomi, värdighet och rättigheter"
-                    godkandText="Förmåga att identifiera och prioritera mellan olika omvårdnads- och medicinska åtgärder och fatta relevanta beslut utifrån individuella behov, medicinska tillstånd och vårdsituation, samt att genomföra och utvärdera effekten av åtgärderna"
-                    underkandText="Oförmåga att identifiera möjliga lösningar i omvårdnadssituationer med flera beståndsdelar eller bristande kunskap och/eller oförmåga att fatta beslut om, genomföra eller utvärdera effekten av omvårdnadsåtgärder i olika typer av situationer"
-                    selectedValue={activeTerm === "midterm" ? selectedAssessment3 : selectedAssessment3End}
-                    onSelect={activeTerm === "midterm" ? setSelectedAssessment3 : setSelectedAssessment3End}
-                    readOnly={supervisorSignedNow || activeRole !== "supervisor"}
-                    midtermValue={activeTerm === "endterm" ? selectedAssessment3 : undefined}
-                    marker={activeTerm === "midterm" ? "O" : "X"}
-                  />
-                </div>
-
-                <div id="assessment-4" className="bg-white rounded-lg border border-gray-200 shadow-sm p-8">
-                  <AssessmentQuestion
-                    title="Visa kunskap om gällande lagar, författningar samt säkerhetsföreskrifter inom akutsjukvården"
-                    godkandText="Visa förståelse för lagar som reglerar akutsjukvårdens verksamhet och kunna applicera dessa i specifika vårdsituationer"
-                    underkandText="Bristande förståelse för vilka legala förutsättningar som finns för att agera inom akutsjukvården i samband med specifika vårdsituationer"
-                    selectedValue={activeTerm === "midterm" ? selectedAssessment4 : selectedAssessment4End}
-                    onSelect={activeTerm === "midterm" ? setSelectedAssessment4 : setSelectedAssessment4End}
-                    readOnly={supervisorSignedNow || activeRole !== "supervisor"}
-                    midtermValue={activeTerm === "endterm" ? selectedAssessment4 : undefined}
-                    marker={activeTerm === "midterm" ? "O" : "X"}
-                  />
-                </div>
+                {questions.map((q, i) =>
+                  templateMode ? (
+                    /* Template editor card: edit texts, remove question */
+                    <div key={q.id} id={`assessment-${i + 1}`} className="bg-white rounded-lg border border-gray-200 shadow-sm p-8 relative">
+                      <button
+                        onClick={() => removeQuestion(q.id)}
+                        title="Ta bort lärandemål"
+                        className="absolute top-4 right-4 p-2 text-red-500 border border-red-200 rounded-lg hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      <div className="mb-6">
+                        <p className="text-sm font-semibold text-gray-900 mb-1"><E k="q.topLabel" /></p>
+                        <h2
+                          onClick={editQuestionText(q.id, "title")}
+                          title="Klicka för att redigera texten"
+                          className="text-xl font-bold text-gray-900 max-w-xl cursor-pointer rounded px-0.5 outline-dashed outline-1 outline-blue-400 hover:bg-blue-100"
+                        >
+                          {q.title}
+                        </h2>
+                      </div>
+                      <div className="flex gap-4 items-stretch">
+                        <div className="flex-1 flex flex-col">
+                          <p className="text-sm font-semibold text-gray-700 mb-3">
+                            <E k={activeTerm === "midterm" ? "q.colPassMid" : "q.colPassEnd"} />
+                          </p>
+                          <div
+                            onClick={editQuestionText(q.id, "godkandText")}
+                            title="Klicka för att redigera texten"
+                            className="flex-1 p-6 border-2 border-gray-300 rounded-lg cursor-pointer hover:bg-blue-50 outline-dashed outline-1 outline-blue-400"
+                          >
+                            <p className="text-sm leading-relaxed">{q.godkandText}</p>
+                          </div>
+                        </div>
+                        <div className="flex-1 flex flex-col">
+                          <p className="text-sm font-semibold text-gray-700 mb-3">
+                            <E k={activeTerm === "midterm" ? "q.colFailMid" : "q.colFailEnd"} />
+                          </p>
+                          <div
+                            onClick={editQuestionText(q.id, "underkandText")}
+                            title="Klicka för att redigera texten"
+                            className="flex-1 p-6 border-2 border-gray-300 rounded-lg cursor-pointer hover:bg-blue-50 outline-dashed outline-1 outline-blue-400"
+                          >
+                            <p className="text-sm leading-relaxed">{q.underkandText}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div key={q.id} id={`assessment-${i + 1}`} className="bg-white rounded-lg border border-gray-200 shadow-sm p-8">
+                      <AssessmentQuestion
+                        title={q.title}
+                        godkandText={q.godkandText}
+                        underkandText={q.underkandText}
+                        selectedValue={grades[q.id] ?? null}
+                        onSelect={(v) => setGrade(q.id, v)}
+                        readOnly={supervisorSignedNow || activeRole !== "supervisor"}
+                        midtermValue={activeTerm === "endterm" ? midtermGrades[q.id] : undefined}
+                        marker={activeTerm === "midterm" ? "O" : "X"}
+                        topLabel={t("q.topLabel")}
+                        passHeading={t(activeTerm === "midterm" ? "q.colPassMid" : "q.colPassEnd")}
+                        failHeading={t(activeTerm === "midterm" ? "q.colFailMid" : "q.colFailEnd")}
+                        showMidtermLabel={t("q.showMidterm")}
+                        hideMidtermLabel={t("q.hideMidterm")}
+                      />
+                    </div>
+                  )
+                )}
+                {templateMode && (
+                  <button
+                    onClick={addQuestion}
+                    className="w-full py-4 border-2 border-dashed border-blue-400 rounded-lg text-blue-600 text-sm font-semibold hover:bg-blue-50 flex items-center justify-center gap-2"
+                  >
+                    <Plus className="w-5 h-5" />
+                    Lägg till lärandemål
+                  </button>
+                )}
               </div>
               )
             ) : activeSection === "signering" ? (
               /* Signering av sluttvurdering Page */
               <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-8">
                 <h1 className="text-2xl font-bold text-gray-900 mb-6">
-                  {activeTerm === "midterm" ? "Signering av halvtidsbedömning" : "Signering av slutbedömning"}
+                  <E k={activeTerm === "midterm" ? "nav.signering.halvtid" : "nav.signering.slut"} />
                 </h1>
 
-                {(activeRole === "student" || activeRole === "teacher") && !supervisorSignedNow ? (
+                {!templateMode && (activeRole === "student" || activeRole === "teacher") && !supervisorSignedNow ? (
                   <div className="py-12 text-center text-gray-500 text-sm italic">
-                    Väntar på handledarens signatur. Bedömningen är inte tillgänglig ännu.
+                    {t("sign.waiting")}
                   </div>
                 ) : (
                 <>
                 <div className="mb-8">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Sammanfattning - Lärandemål Akutsjukvård</h2>
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4"><E k="sign.summaryTitle" /></h2>
                   <AssessmentSummary
                     marker={activeTerm === "midterm" ? "O" : "X"}
-                    assessments={[
-                      {
-                        title: "Självständigt observera och bedöma patienters vårdbehov utifrån symtom och tecken på sjukdom och/eller skada",
-                        selectedValue: activeTerm === "midterm" ? selectedAssessment : selectedAssessmentEnd,
-                      },
-                      {
-                        title: "Självständigt bedöma och prioritera patienters omedelbara medicinska- och omvårdnadsbehov",
-                        selectedValue: activeTerm === "midterm" ? selectedAssessment2 : selectedAssessment2End,
-                      },
-                      {
-                        title: "Självständigt genomföra de åtgärder som patienters bedömda vårdbehov kräver utifrån patientens autonomi, värdighet och rättigheter",
-                        selectedValue: activeTerm === "midterm" ? selectedAssessment3 : selectedAssessment3End,
-                      },
-                      {
-                        title: "Visa kunskap om gällande lagar, författningar samt säkerhetsföreskrifter inom akutsjukvården",
-                        selectedValue: activeTerm === "midterm" ? selectedAssessment4 : selectedAssessment4End,
-                      },
-                    ]}
+                    assessments={questions.map((q) => ({
+                      title: q.title,
+                      selectedValue: grades[q.id] ?? null,
+                    }))}
+                    larandemalHeading={<E k="summary.larandemal" />}
+                    passHeading={<E k={activeTerm === "midterm" ? "summary.passMid" : "summary.passEnd"} />}
+                    failHeading={<E k={activeTerm === "midterm" ? "summary.failMid" : "summary.failEnd"} />}
                   />
                 </div>
 
@@ -1109,25 +1341,15 @@ export default function App() {
                     <div>
                       {showValidationErrors && validateAllFields().length > 0 && (
                         <div className="mb-4 p-4 bg-red-50 border border-red-300 rounded-lg">
-                          <p className="text-sm font-semibold text-red-800 mb-2">Vänligen fyll i alla obligatoriska fält:</p>
+                          <p className="text-sm font-semibold text-red-800 mb-2"><E k="val.heading" /></p>
                           <ul className="text-sm text-red-700 list-disc list-inside space-y-1">
-                            {!akutmottagningFilled && <li>Akutmottagning (Praksisinformasjon)</li>}
-                            {activeTerm === "midterm" ? (
-                              <>
-                                {!selectedAssessment && <li>Bedömningskriterium 1 (Lärandemål Akutsjukvård)</li>}
-                                {!selectedAssessment2 && <li>Bedömningskriterium 2 (Lärandemål Akutsjukvård)</li>}
-                                {!selectedAssessment3 && <li>Bedömningskriterium 3 (Lärandemål Akutsjukvård)</li>}
-                                {!selectedAssessment4 && <li>Bedömningskriterium 4 (Lärandemål Akutsjukvård)</li>}
-                              </>
-                            ) : (
-                              <>
-                                {!selectedAssessmentEnd && <li>Bedömningskriterium 1 (Lärandemål Akutsjukvård)</li>}
-                                {!selectedAssessment2End && <li>Bedömningskriterium 2 (Lärandemål Akutsjukvård)</li>}
-                                {!selectedAssessment3End && <li>Bedömningskriterium 3 (Lärandemål Akutsjukvård)</li>}
-                                {!selectedAssessment4End && <li>Bedömningskriterium 4 (Lärandemål Akutsjukvård)</li>}
-                              </>
+                            {!akutmottagningFilled && <li><E k="val.enhet" /></li>}
+                            {questions.map((q, i) =>
+                              !grades[q.id] ? (
+                                <li key={q.id}>Bedömningskriterium {i + 1} ({t("nav.larandemal")})</li>
+                              ) : null
                             )}
-                            {!signDatumNow && <li>Datum för signering (Signering)</li>}
+                            {!signDatumNow && <li><E k="val.datum" /></li>}
                           </ul>
                         </div>
                       )}
@@ -1135,7 +1357,7 @@ export default function App() {
                   ) : (
                     /* Signature Info */
                     <div className="mt-6">
-                      <p className="text-sm text-gray-600 mb-3">Signerad av:</p>
+                      <p className="text-sm text-gray-600 mb-3"><E k="sign.signedBy" /></p>
                       <div className="flex items-center gap-3 w-fit">
                         <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
                           VT
@@ -1154,9 +1376,9 @@ export default function App() {
 
                 {(activeRole === "student" || activeRole === "teacher") && (
                   <div className="mt-8 pt-8 border-t border-gray-200">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Studentens signatur</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4"><E k="sign.studentSection" /></h3>
                     {!supervisorSignedNow ? (
-                      <p className="text-sm text-gray-500 italic">Väntar på handledarens signatur.</p>
+                      <p className="text-sm text-gray-500 italic"><E k="sign.waitingShort" /></p>
                     ) : studentSignedNow ? (
                       <div className="flex items-center gap-3 w-fit">
                         <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">AA</div>
@@ -1167,18 +1389,18 @@ export default function App() {
                         <div className="pl-4"><p className="text-sm text-gray-700">{signDatumNow || "2026-06-05"}</p></div>
                       </div>
                     ) : activeRole === "teacher" ? (
-                      <p className="text-sm text-gray-500 italic">Ej signerad av student.</p>
+                      <p className="text-sm text-gray-500 italic"><E k="sign.ejStudent" /></p>
                     ) : (
-                      <p className="text-sm text-gray-500 italic">Använd åtgärdsfältet nedan för att välja datum och signera.</p>
+                      <p className="text-sm text-gray-500 italic"><E k="sign.useAction" /></p>
                     )}
                   </div>
                 )}
 
                 {(activeRole === "student" || activeRole === "teacher") && (
                   <div className="mt-8 pt-8 border-t border-gray-200">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Lärarens signatur</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4"><E k="sign.teacherSection" /></h3>
                     {!supervisorSignedNow ? (
-                      <p className="text-sm text-gray-500 italic">Väntar på handledarens signatur.</p>
+                      <p className="text-sm text-gray-500 italic"><E k="sign.waitingShort" /></p>
                     ) : teacherSignedNow ? (
                       <div className="flex items-center gap-3 w-fit">
                         <div className="w-10 h-10 bg-emerald-600 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">LK</div>
@@ -1189,9 +1411,9 @@ export default function App() {
                         <div className="pl-4"><p className="text-sm text-gray-700">{signDatumNow || "2026-06-05"}</p></div>
                       </div>
                     ) : activeRole === "student" ? (
-                      <p className="text-sm text-gray-500 italic">Ej signerad av lärare.</p>
+                      <p className="text-sm text-gray-500 italic"><E k="sign.ejLarare" /></p>
                     ) : (
-                      <p className="text-sm text-gray-500 italic">Använd åtgärdsfältet nedan för att välja datum och signera.</p>
+                      <p className="text-sm text-gray-500 italic"><E k="sign.useAction" /></p>
                     )}
                   </div>
                 )}
@@ -1201,7 +1423,7 @@ export default function App() {
                     <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                     </svg>
-                    <p className="text-sm text-blue-800">Kontrollera bedömningen i förhandsvisning uppe till höger innan du signerar</p>
+                    <p className="text-sm text-blue-800"><E k="sign.checkPreview" /></p>
                   </div>
                 )}
                 </>
@@ -1266,7 +1488,7 @@ export default function App() {
                     className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     <ChevronLeft className="w-4 h-4" />
-                    Föregående
+                    <E k="btn.prev" />
                   </button>
                 ) : (
                   <span />
@@ -1276,7 +1498,7 @@ export default function App() {
                     onClick={() => goToSection(sectionIndex + 1)}
                     className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
                   >
-                    Nästa
+                    <E k="btn.next" />
                     <ChevronRight className="w-4 h-4" />
                   </button>
                 )}
@@ -1380,30 +1602,14 @@ export default function App() {
             </div>
           ) : activeSection === "bedomningskriterier" ? (
             <div className="space-y-3">
-              <a href="#" onClick={scrollTo("assessment-1")} className="flex items-start gap-2 group">
-                {rsIcon(!!(activeTerm === "midterm" ? selectedAssessment : selectedAssessmentEnd), true)}
-                <span className="text-sm text-blue-600 group-hover:underline line-clamp-2">
-                  Självständigt observera och bedöma patienters vårdbehov utifrån symtom och tecken på sjukdom och/eller skada
-                </span>
-              </a>
-              <a href="#" onClick={scrollTo("assessment-2")} className="flex items-start gap-2 group">
-                {rsIcon(!!(activeTerm === "midterm" ? selectedAssessment2 : selectedAssessment2End), true)}
-                <span className="text-sm text-blue-600 group-hover:underline line-clamp-2">
-                  Självständigt bedöma och prioritera patienters omedelbara medicinska- och omvårdnadsbehov
-                </span>
-              </a>
-              <a href="#" onClick={scrollTo("assessment-3")} className="flex items-start gap-2 group">
-                {rsIcon(!!(activeTerm === "midterm" ? selectedAssessment3 : selectedAssessment3End), true)}
-                <span className="text-sm text-blue-600 group-hover:underline line-clamp-2">
-                  Självständigt genomföra de åtgärder som patienters bedömda vårdbehov kräver utifrån patientens autonomi, värdighet och rättigheter
-                </span>
-              </a>
-              <a href="#" onClick={scrollTo("assessment-4")} className="flex items-start gap-2 group">
-                {rsIcon(!!(activeTerm === "midterm" ? selectedAssessment4 : selectedAssessment4End), true)}
-                <span className="text-sm text-blue-600 group-hover:underline line-clamp-2">
-                  Visa kunskap om gällande lagar, författningar samt säkerhetsföreskrifter inom akutsjukvården
-                </span>
-              </a>
+              {questions.map((q, i) => (
+                <a key={q.id} href="#" onClick={scrollTo(`assessment-${i + 1}`)} className="flex items-start gap-2 group">
+                  {rsIcon(!!grades[q.id], true)}
+                  <span className="text-sm text-blue-600 group-hover:underline line-clamp-2">
+                    {q.title}
+                  </span>
+                </a>
+              ))}
             </div>
           ) : activeSection === "signering" ? (
             <div className="space-y-3">

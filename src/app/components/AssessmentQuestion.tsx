@@ -10,6 +10,12 @@ interface AssessmentQuestionProps {
   marker: string;
   readOnly?: boolean;
   midtermValue?: string | null;
+  // Template-driven labels; fall back to the built-in defaults when not provided.
+  topLabel?: string;
+  passHeading?: string;
+  failHeading?: string;
+  showMidtermLabel?: string;
+  hideMidtermLabel?: string;
 }
 
 export function AssessmentQuestion({
@@ -21,6 +27,11 @@ export function AssessmentQuestion({
   marker,
   readOnly = false,
   midtermValue,
+  topLabel = "Lärandemål",
+  passHeading,
+  failHeading,
+  showMidtermLabel = "Visa gradering från halvtidsbedömning",
+  hideMidtermLabel = "Dölj gradering från halvtidsbedömning",
 }: AssessmentQuestionProps) {
   const [showMidterm, setShowMidterm] = useState(false);
   // marker "O" == Halvtidsbedömning (midterm), "X" == Slutbedömning (endterm)
@@ -28,7 +39,7 @@ export function AssessmentQuestion({
   return (
     <div>
       <div className="mb-6">
-        <p className="text-sm font-semibold text-gray-900 mb-1">Lärandemål</p>
+        <p className="text-sm font-semibold text-gray-900 mb-1">{topLabel}</p>
         <h2 className="text-xl font-bold text-gray-900">
           {title}
           <span className="text-red-600 ml-2">*</span>
@@ -46,16 +57,14 @@ export function AssessmentQuestion({
           ) : (
             <Eye className="w-4 h-4" />
           )}
-          {showMidterm
-            ? "Dölj gradering från halvtidsbedömning"
-            : "Visa gradering från halvtidsbedömning"}
+          {showMidterm ? hideMidtermLabel : showMidtermLabel}
         </button>
       )}
 
       <div className="flex gap-4 items-stretch">
         <div className="flex-1 flex flex-col">
           <p className="text-sm font-semibold text-gray-700 mb-3">
-            {isMidterm ? "Betryggande utveckling" : "För godkänt ska studenten:"}
+            {passHeading ?? (isMidterm ? "Betryggande utveckling" : "För godkänt ska studenten:")}
           </p>
           <div className="flex-1 flex">
             <button
@@ -84,7 +93,7 @@ export function AssessmentQuestion({
 
         <div className="flex-1 flex flex-col">
           <p className="text-sm font-semibold text-gray-700 mb-3">
-            {isMidterm ? "Ej betryggande utveckling" : "Student uppfyller inte kriterierna för godkänd:"}
+            {failHeading ?? (isMidterm ? "Ej betryggande utveckling" : "Student uppfyller inte kriterierna för godkänd:")}
           </p>
           <div className="flex-1 flex">
             <button

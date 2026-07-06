@@ -83,3 +83,10 @@ If user has not filled optional input in the page, circle yellow
 If user filled mandatory input in the page, circle green
 
 for student ad teacher roles only Signering av halvtidsbedömning item should be circle red or circle green. other item colors gray
+
+this prototype will be used in my saas app. So I need a functionality for admin users to edit the form content and all user facing text. 
+1-Add new button to topright before handledere button as "Template"
+2- When this button is pressed enter edit mode of the form.
+3-In edit mode user should be able to change all user facing text including left sidebar items,place holders, button texts etc. When text is clicked user will submit new text in a pop-up and save the new key. for left sidebar items instead of click display icon as 3 dots vertical for changing the text, because they are needed for changing the pages
+4-Right side bar items are coming from page elements and should not be affected.
+5- Lärandemål Akutsjukvård page, using template user should be able to add/remove questions or edit text

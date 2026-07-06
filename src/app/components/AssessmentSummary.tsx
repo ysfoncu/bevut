@@ -4,11 +4,18 @@ interface AssessmentSummaryProps {
     selectedValue: string | null;
   }[];
   marker: string;
+  // Template-driven column headings; fall back to the built-in defaults when not provided.
+  larandemalHeading?: React.ReactNode;
+  passHeading?: React.ReactNode;
+  failHeading?: React.ReactNode;
 }
 
 export function AssessmentSummary({
   assessments,
   marker,
+  larandemalHeading,
+  passHeading,
+  failHeading,
 }: AssessmentSummaryProps) {
   // marker "O" == Halvtidsbedömning (midterm), "X" == Slutbedömning (endterm)
   const isMidterm = marker === "O";
@@ -18,13 +25,13 @@ export function AssessmentSummary({
         <thead>
           <tr className="bg-gray-50">
             <th className="border border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-900">
-              Lärandemål
+              {larandemalHeading ?? "Lärandemål"}
             </th>
             <th className="border border-gray-300 px-4 py-3 text-center text-sm font-semibold text-gray-900">
-              {isMidterm ? "Betryggande utveckling" : "Godkänt"}
+              {passHeading ?? (isMidterm ? "Betryggande utveckling" : "Godkänt")}
             </th>
             <th className="border border-gray-300 px-4 py-3 text-center text-sm font-semibold text-gray-900">
-              {isMidterm ? "Ej betryggande utveckling" : "Student uppfyller inte kriterierna för godkänd"}
+              {failHeading ?? (isMidterm ? "Ej betryggande utveckling" : "Student uppfyller inte kriterierna för godkänd")}
             </th>
           </tr>
         </thead>

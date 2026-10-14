@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Info, Plus, Trash2, ChevronDown, ChevronUp, Clock, Lock } from "lucide-react";
-import { RichText, RichTextEditor } from "./RichText";
+import { RichText, RichTextEditor, plainTextLength } from "./RichText";
 import { LikertScale, type LikertLevel } from "./LikertScale";
 import { RoleCommentField, formatShortDate } from "./RoleCommentField";
 
@@ -150,6 +150,7 @@ export function CategoryPage({
     return done[owner] ? "visible" : "awaiting";
   };
   const scoreMissing = showErrors && ownScore === null && ownEditable;
+  const commentMissing = showErrors && role === "student" && !done.student && !templateMode && plainTextLength(response.student) === 0;
   const cid = category.id;
 
   const fields: { key: "student" | "supervisor" | "teacher"; labelKey: string; owner: Role }[] = [
@@ -310,7 +311,11 @@ export function CategoryPage({
                 </>
               ) : (
                 <>
-                  <p id={`${id}-label`} className={labelClass}>{dot}{E(labelKey)}</p>
+                  <p id={`${id}-label`} className={labelClass}>
+                    {dot}
+                    {E(labelKey)}
+                    {key === "student" && editable && <span className="text-red-600" aria-hidden="true">*</span>}
+                  </p>
                   <RoleCommentField
                     id={id}
                     label={t(labelKey)}
@@ -328,6 +333,9 @@ export function CategoryPage({
                     unsavedLabel={t("cat.unsaved")}
                     onSave={(html) => onSaveText(key, html)}
                   />
+                  {key === "student" && commentMissing && (
+                    <p role="alert" className="mt-2 text-sm text-red-700">{t("cat.commentRequired")}</p>
+                  )}
                 </>
               )}
             </div>

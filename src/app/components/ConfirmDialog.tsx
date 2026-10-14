@@ -9,6 +9,7 @@ interface ConfirmDialogProps {
   onCancel: () => void;
 }
 
+// An empty cancelLabel hides the cancel button (information-only popup).
 // Modal for irreversible actions (in the real app this is where the e-mailed code is entered): focus starts on Cancel, Tab is trapped, Esc closes, focus returns to the trigger.
 export function ConfirmDialog({ title, body, confirmLabel, cancelLabel, onConfirm, onCancel }: ConfirmDialogProps) {
   const box = useRef<HTMLDivElement>(null);
@@ -51,15 +52,18 @@ export function ConfirmDialog({ title, body, confirmLabel, cancelLabel, onConfir
         <h2 id="cf-title" className="text-lg font-semibold text-gray-900 mb-3">{title}</h2>
         <div id="cf-body" className="text-sm text-gray-700 mb-6 space-y-2">{body}</div>
         <div className="flex justify-end gap-2">
+          {cancelLabel && (
+            <button
+              autoFocus
+              type="button"
+              onClick={onCancel}
+              className="px-4 py-2 text-sm font-medium text-gray-900 border border-gray-400 rounded-lg hover:bg-gray-50"
+            >
+              {cancelLabel}
+            </button>
+          )}
           <button
-            autoFocus
-            type="button"
-            onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-gray-900 border border-gray-400 rounded-lg hover:bg-gray-50"
-          >
-            {cancelLabel}
-          </button>
-          <button
+            autoFocus={!cancelLabel}
             type="button"
             onClick={onConfirm}
             className="px-4 py-2 text-sm font-semibold rounded-lg bg-blue-700 text-white hover:bg-blue-800"

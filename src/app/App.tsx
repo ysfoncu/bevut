@@ -9,6 +9,7 @@ import {
   Circle,
   Clock,
   Eye,
+  Lock,
   Menu,
   MoreVertical,
   Pencil,
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { AssessmentSummary } from "./components/AssessmentSummary";
+import { USER_GUIDE_HTML } from "./userGuide";
 import { RichText, RichTextEditor, plainTextLength } from "./components/RichText";
 import { RoleCommentField, formatShortDate, formatDate, formatDateTime } from "./components/RoleCommentField";
 import { ConfirmDialog } from "./components/ConfirmDialog";
@@ -107,7 +109,13 @@ const defaultTexts: Record<string, string> = {
   "nav.signering.halvtid": "Godkjenning av vurdering",
   "nav.signering.slut": "Godkjenning av vurdering",
   "btn.avbryt": "Avbryt vurderingsprosess",
-  "btn.handlingsplan": "Aktiver handlingsplan",
+  "btn.handlingsplan": "Gi varsel",
+  "warn.title": "Gi varsel",
+  "warn.body": "Her kan brukeren aktivere «Fare for» og «Overføringssamtale», som i dagens skjema.",
+  "warn.proto": "Denne funksjonen er ikke med i prototypen.",
+  "warn.close": "Lukk",
+  "cancel.title": "Avbryt vurderingsprosess",
+  "cancel.body": "Læreren kan avbryte vurderingen med en begrunnelse i tre trinn. Dette er eksisterende funksjonalitet i andre skjemaer. Implementasjonen kan kontrolleres i ett av dem.",
   "btn.prev": "Forrige",
   "btn.next": "Neste",
   "vfu.content": "",
@@ -138,6 +146,7 @@ const defaultTexts: Record<string, string> = {
   "flow.nextStep": "Neste steg:",
   "flow.confirmHeading": "Bekreftelse før signering",
   "flow.nextFill": "Fyll ut måloppnåelse i {n} kategorier.",
+  "flow.nextFillStudent": "Fyll ut kommentar og måloppnåelse i {n} kategorier.",
   "flow.nextSubmit": "Send inn skjemaet.",
   "flow.nextSign": "Signer skjemaet.",
   "flow.nextWaiting": "Venter på {who}.",
@@ -220,6 +229,8 @@ const defaultTexts: Record<string, string> = {
   "flow.readySubmit": "Klar til å sende inn.",
   "flow.readySign": "Klar til å signere.",
   "flow.missingScores": "Mangler måloppnåelse i {n} av {total} kategorier.",
+  "flow.missingStudent": "Mangler kommentar eller måloppnåelse i {n} av {total} kategorier.",
+  "cat.commentRequired": "Skriv en kommentar i egenvurderingen.",
   "flow.goToFirst": "Gå til første",
   "flow.waitTeacherSign": "Innsendt. Når læreren har signert, kan du signere.",
   "flow.confirmSubmitTitle": "Send inn skjemaet?",
@@ -247,6 +258,7 @@ const defaultTexts: Record<string, string> = {
   "flow.stepSubmitted": "Innsendt",
   "flow.stepNotSubmitted": "Ikke innsendt",
   "flow.reopen": "Åpne på nytt",
+  "flow.reopenDisabled": "Læreren har signert skjemaet. Skjemaet kan ikke åpnes på nytt.",
   "flow.popupTitle": "Du kan ikke gi måloppnåelse ennå",
   "flow.popupBody": "Student og praksisveileder må sende inn skjemaet før du kan gi endelig måloppnåelse.",
   "flow.popupOk": "OK",
@@ -289,6 +301,8 @@ export default function App() {
   const [showGradeBlocked, setShowGradeBlocked] = useState(false);
   // Confirmation dialog for the irreversible actions, and a short confirmation message afterwards.
   const [confirmAction, setConfirmAction] = useState<null | "submit" | "sign">(null);
+  // Information-only popups for functions outside this prototype.
+  const [infoPopup, setInfoPopup] = useState<null | "warn" | "cancel">(null);
   const [toast, setToast] = useState("");
   const [navOpen, setNavOpen] = useState(false);
   // Praksisplass is typed in manually (supervisor/teacher); the other items come from the system.
@@ -446,7 +460,9 @@ export default function App() {
     return roleDone(activeRole, term) && roleDone(r, term);
   };
   // Categories where the active role has not yet given a Måloppnåelse score.
-  const missingScores = categories.filter((c) => roleScore(respFor(c.id), activeRole) === null);
+  // Student: the written self-assessment is mandatory in every category too, so a category is incomplete without a saved comment.
+  const commentMissing = (c: { id: string }) => activeRole === "student" && plainTextLength(respFor(c.id).student) === 0;
+  const missingScores = categories.filter((c) => roleScore(respFor(c.id), activeRole) === null || commentMissing(c));
   const setCompletionDate = (v: string) => patchFlow(activeTerm, (f) => ({ ...f, completionDate: v }));
   const setTransferTalk = (v: boolean) => {
     patchFlow(activeTerm, (f) => ({ ...f, transferTalk: v }));
@@ -460,7 +476,10 @@ export default function App() {
   const needsOutcome = activeTerm === "endterm";
 
   // What currently blocks the active role from its next step (submit / sign).
-  const submitBlockers = missingScores.map((c) => `${t("cat.scoreRequired").replace(/\.$/, "")}: ${c.title}`);
+  const submitBlockers = missingScores.flatMap((c) => [
+    ...(commentMissing(c) ? [`${t("cat.commentRequired").replace(/\.$/, "")}: ${c.title}`] : []),
+    ...(roleScore(respFor(c.id), activeRole) === null ? [`${t("cat.scoreRequired").replace(/\.$/, "")}: ${c.title}`] : []),
+  ]);
   const signBlockers: string[] = [];
   if (activeRole === "teacher") {
     if (!cur.submitted.student) signBlockers.push(t("flow.needStudent"));
@@ -636,7 +655,7 @@ export default function App() {
         ready,
         statusText: ready
           ? t("flow.readySubmit")
-          : t("flow.missingScores").replace("{n}", String(missingScores.length)).replace("{total}", String(categories.length)),
+          : t(activeRole === "student" ? "flow.missingStudent" : "flow.missingScores").replace("{n}", String(missingScores.length)).replace("{total}", String(categories.length)),
         goTo: missingScores[0]?.id,
         showButton: true,
       };
@@ -686,7 +705,7 @@ export default function App() {
       return ready ? "progress" : "todo";
     }
     const r = respFor(section);
-    if (roleScore(r, activeRole) !== null) return "done";
+    if (roleScore(r, activeRole) !== null && !(activeRole === "student" && plainTextLength(r.student) === 0)) return "done";
     if (showValidationErrors) return "error";
     return plainTextLength(r[activeRole]) > 0 ? "progress" : "todo";
   };
@@ -754,12 +773,18 @@ export default function App() {
               })}
             </ul>
 
-            {activeRole !== "student" && (
+            {activeRole === "teacher" && (
               <div className="mt-4 pt-4 border-t border-gray-200">
-                <button className="w-full px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
+                <button
+                  onClick={() => { if (!templateMode) setInfoPopup("cancel"); }}
+                  className="w-full px-4 py-2 text-sm font-medium text-red-700 border border-red-600 rounded-lg hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2"
+                >
                   <E k="btn.avbryt" />
                 </button>
-                <button className="w-full mt-2 px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
+                <button
+                  onClick={() => { if (!templateMode) setInfoPopup("warn"); }}
+                  className="w-full mt-2 px-4 py-2 text-sm font-medium text-red-700 border border-red-600 rounded-lg hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2"
+                >
                   <E k="btn.handlingsplan" />
                 </button>
               </div>
@@ -1003,7 +1028,7 @@ export default function App() {
   // Slim "next step" hint shown on every page except Signering (which has the full action bar).
   const slimNext = (): { text: string; link?: string; goTo?: string; kind: "fill" | "go" | "wait" } | null => {
     if (templateMode || readingMode || cur.signed[activeRole]) return null;
-    const fill = { text: t("flow.nextFill").replace("{n}", String(missingScores.length)), link: t("flow.goToFirst"), goTo: missingScores[0]?.id, kind: "fill" as const };
+    const fill = { text: t(activeRole === "student" ? "flow.nextFillStudent" : "flow.nextFill").replace("{n}", String(missingScores.length)), link: t("flow.goToFirst"), goTo: missingScores[0]?.id, kind: "fill" as const };
     const sign = { text: t("flow.nextSign"), link: t("flow.goToSigning"), goTo: "signering", kind: "go" as const };
     if (activeRole !== "teacher") {
       if (!cur.submitted[activeRole]) return missingScores.length ? fill : { text: t("flow.nextSubmit"), link: t("flow.goToSigning"), goTo: "signering", kind: "go" as const };
@@ -1024,7 +1049,7 @@ export default function App() {
       setAnnounce(
         missingScores.length === 0
           ? t("flow.allCategoriesDone")
-          : t("flow.missingScores").replace("{n}", String(missingScores.length)).replace("{total}", String(categories.length))
+          : t(activeRole === "student" ? "flow.missingStudent" : "flow.missingScores").replace("{n}", String(missingScores.length)).replace("{total}", String(categories.length))
       );
     }
     prevMissing.current = missingScores.length;
@@ -1056,6 +1081,23 @@ export default function App() {
           </div>
         </div>
       )}
+      {/* "Gi varsel" / "Avbryt vurderingsprosess": information only — the real functions are outside this prototype. */}
+      {infoPopup && (
+        <ConfirmDialog
+          title={t(infoPopup === "warn" ? "warn.title" : "cancel.title")}
+          body={
+            <>
+              <p>{t(infoPopup === "warn" ? "warn.body" : "cancel.body")}</p>
+              <p>{t("warn.proto")}</p>
+            </>
+          }
+          confirmLabel={t("warn.close")}
+          cancelLabel=""
+          onConfirm={() => setInfoPopup(null)}
+          onCancel={() => setInfoPopup(null)}
+        />
+      )}
+
       {/* Confirmation for the irreversible actions (the consent checkbox lives in the form, not here). */}
       {confirmAction && (
         <ConfirmDialog
@@ -1552,6 +1594,10 @@ export default function App() {
                     <RichText html={t("vfu.content")} />
                   )}
                 </div>
+
+                <div className="mt-8 pt-6 border-t border-gray-300 text-sm text-gray-700 leading-relaxed">
+                  <RichText html={USER_GUIDE_HTML} />
+                </div>
               </div>
             ) : categories.some((c) => c.id === activeSection) ? (
               (() => {
@@ -1660,6 +1706,12 @@ export default function App() {
                       );
                     })}
                   </ul>
+                  {!templateMode && cur.signed.teacher && (
+                    <p className="mt-3 flex items-center gap-2 text-sm text-gray-700">
+                      <Lock className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+                      <E k="flow.reopenDisabled" />
+                    </p>
+                  )}
                 </div>
 
                 {/* The teacher's last comments — both terms; editable until the teacher signs, then shown to everyone */}

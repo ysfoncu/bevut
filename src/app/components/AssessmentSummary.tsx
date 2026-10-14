@@ -1,72 +1,93 @@
-interface AssessmentSummaryProps {
-  assessments: {
-    title: string;
-    selectedValue: string | null;
-  }[];
-  marker: string;
-  // Template-driven column headings; fall back to the built-in defaults when not provided.
-  larandemalHeading?: React.ReactNode;
-  passHeading?: React.ReactNode;
-  failHeading?: React.ReactNode;
+import type { ReactNode } from "react";
+
+export interface SummaryEntry {
+  label: string; // chosen level, e.g. "Høy måloppnåelse"
+  person: string; // full name of whoever saved the score last
+  className: string; // role colour classes
 }
 
-export function AssessmentSummary({
-  assessments,
-  marker,
-  larandemalHeading,
-  passHeading,
-  failHeading,
-}: AssessmentSummaryProps) {
-  // marker "O" == Halvtidsbedömning (midterm), "X" == Slutbedömning (endterm)
-  const isMidterm = marker === "O";
+interface AssessmentSummaryProps {
+  caption: string;
+  categoryHeading: ReactNode;
+  // Column headings, one per role: student, supervisor, teacher (final grading)
+  columns: { key: string; heading: ReactNode }[];
+  rows: { title: string; cells: SummaryEntry[][] }[];
+  emptyText: string;
+}
+
+// Hovedkategori × role: each cell shows only the level the role chose (the grader is in the tooltip / screen-reader text).
+export function AssessmentSummary({ caption, categoryHeading, columns, rows, emptyText }: AssessmentSummaryProps) {
   return (
-    <div className="overflow-x-auto">
+    <>
+      {/* Below md: one card per category with labelled values (no horizontal scrolling) */}
+      <ul className="md:hidden space-y-3" aria-label={caption}>
+        {rows.map((row, i) => (
+          <li key={i} className="border border-gray-300 rounded-lg p-3">
+            <p className="text-sm font-semibold text-gray-900 mb-2">{row.title}</p>
+            <dl className="space-y-2">
+              {row.cells.map((entries, ci) => (
+                <div key={columns[ci].key}>
+                  <dt className="text-xs text-gray-600">{columns[ci].heading}</dt>
+                  <dd className="mt-0.5">
+                    {entries.length === 0 ? (
+                      <span className="text-sm text-gray-500">{emptyText}</span>
+                    ) : (
+                      <span
+                        title={entries[0].person}
+                        className={`inline-block text-sm font-medium rounded border px-2 py-0.5 ${entries[0].className}`}
+                      >
+                        {entries[0].label}
+                        <span className="sr-only">, {entries[0].person}</span>
+                      </span>
+                    )}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </li>
+        ))}
+      </ul>
+    <div className="hidden md:block overflow-x-auto" tabIndex={0} role="region" aria-label={caption}>
       <table className="w-full border-collapse border border-gray-300">
+        <caption className="sr-only">{caption}</caption>
         <thead>
           <tr className="bg-gray-50">
-            <th className="border border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-900">
-              {larandemalHeading ?? "Lärandemål"}
+            <th scope="col" className="border border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-900">
+              {categoryHeading}
             </th>
-            <th className="border border-gray-300 px-4 py-3 text-center text-sm font-semibold text-gray-900">
-              {passHeading ?? (isMidterm ? "Betryggande utveckling" : "Godkänt")}
-            </th>
-            <th className="border border-gray-300 px-4 py-3 text-center text-sm font-semibold text-gray-900">
-              {failHeading ?? (isMidterm ? "Ej betryggande utveckling" : "Student uppfyller inte kriterierna för godkänd")}
-            </th>
+            {columns.map((c) => (
+              <th key={c.key} scope="col" className="border border-gray-300 px-3 py-3 text-left text-sm font-semibold text-gray-900">
+                {c.heading}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
-          {assessments.map((assessment, index) => (
-            <tr key={index} className="hover:bg-gray-50">
-              <td className="border border-gray-300 px-4 py-3 text-sm text-gray-900">
-                {assessment.title}
-              </td>
-              <td
-                className={`border border-gray-300 px-4 py-3 text-center text-lg font-bold ${
-                  assessment.selectedValue === "godkand"
-                    ? "bg-green-100 text-green-700"
-                    : "text-gray-900"
-                }`}
-              >
-                {assessment.selectedValue === "godkand"
-                  ? marker
-                  : ""}
-              </td>
-              <td
-                className={`border border-gray-300 px-4 py-3 text-center text-lg font-bold ${
-                  assessment.selectedValue === "underkand"
-                    ? "bg-red-100 text-red-700"
-                    : "text-gray-900"
-                }`}
-              >
-                {assessment.selectedValue === "underkand"
-                  ? marker
-                  : ""}
-              </td>
+          {rows.map((row, i) => (
+            <tr key={i} className="hover:bg-gray-50 align-top">
+              <th scope="row" className="border border-gray-300 px-4 py-3 text-left text-sm font-normal text-gray-900">
+                {row.title}
+              </th>
+              {row.cells.map((entries, ci) => (
+                <td key={columns[ci].key} className="border border-gray-300 px-3 py-3">
+                  {entries.length === 0 ? (
+                    <span className="text-sm text-gray-500" aria-label={emptyText}>—</span>
+                  ) : (
+                    <span
+                      title={entries[0].person}
+                      className={`inline-block text-sm font-medium rounded border px-2 py-0.5 ${entries[0].className}`}
+                    >
+                      {entries[0].label}
+                      <span className="sr-only">, {entries[0].person}</span>
+                    </span>
+                  )}
+                </td>
+              ))}
             </tr>
           ))}
         </tbody>
       </table>
     </div>
+    </>
   );
 }

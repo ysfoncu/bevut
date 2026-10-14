@@ -1,92 +1,68 @@
-Change text "Signering av midterm" which is in left sidebar and 5. Signering av halvtidsbedömning, and if it is enterm Signering av sluttbedömning,
+we are going to update this form and its template.
+1- VFU-Information page 
+Template => Rich text input Text inserted in template should be displayed in form
+Start with this change
 
-Formtab titles change "Midterm" as Halvtidsbedömning and "Endterm" as Sluttbedömning
+❯ now read /Users/yavuzoncu/Documents/claude_tasks/LDH-NEW-SCHEMA/Bestilling til nytt vurderingsskjema for praksisstudier ved Bachelor i sykepleie_LDH_MOSO.docx. 
+new form structure is described in this document.
 
-This time a more complex change. main goal is merging VFU-Information and Planering pages. 
-get items from Planering page and put them in VFU-Information page, before signature block
-And then remove Planering page
+remove Lärandemål page and add questions described in the document between 
 
-Another complex update.
-Smilar to student role, teacher role should sign the form after supervisors submission.
-When both student and teacher signed endterm form will be opened automatically 
+Praksis information and Signering av halvtidsbedömning pages. 
 
-Created - Skapad
-Signed by supervisor - Undertecknad av handledare
-Signed by teacher - Undertecknad av lärare
-Signed by student - Undertecknad av elev
-Not signed yet - Inte undertecknad
+Signering av halvtidsbedömning page should be updated based on new questions
+
+Approach is smilar, questions should be editable in template page.
+
+Now use ux expert and and other experts to plan and implement the changes
+
+custom logic for this form
+
+Måloppnåelse*
+
+student will fill the form including Måloppnåelse and submit
+supervisor will fill the form including Måloppnåelse and submit.
+
+After submitting form, form becomes readonly for the user. Teacher should be able to reopen the form for user again
+
+Teacher will check the form and make the final grading on Måloppnåelse and then will sign
+
+after teachers signature student and supervisor will sign
+
+plan and implement changes using your experts
 
 
-Signed by student
+Student can see gradings and comments of supervisor after student submits the form
+
+Supervisor can see gradings and comments of student after Supervisor submits the form
+
+Teacher is opening the submitted form form for student, but student cannot change gradings. check again
 
 
-Created
-Signed by supervisor
-Signed by teacher
-Signed by student
+Some changes in inputs in forms for roles
+when input is clicked view is like in /Users/yavuzoncu/Documents/claude_tasks/LDH-NEW-SCHEMA/SCR-20261012-mulf.png
 
-Slututvärderingen kommer att genereras efter att halvtidsutvärderingen har undertecknats av alla roller
+when published view is like /Users/yavuzoncu/Documents/claude_tasks/LDH-NEW-SCHEMA/SCR-20261012-mvfe.png
 
-Slutbedömning kommer att vara synlig efter att alla roller har undertecknat halvtidsbedömning
+when not published and not clicked current view.
 
-All text visible to the user, update as follows
-midterm - Halvtidsbedömning
-eneterm - Slutbedömning
+Understand the change request. and implement use your experts
 
-❯ signering av halvtidsbedömning page right sidebar still I see midterm
+color codes
+teacher  173348
+8786F7 supervisor
+76157C student
 
-endterm
-Bedömningskriterier Akutsjukvård page
-add acction to each question graded by supervisor as "Visa gradering från halvtidsbedömning"
-When clicked add "O" to the selected option in midterm
-So that user will easilly see how this question is being graded in midterm
+Remove signeringsdato. users will not select date while signing, instead system will register these dates silently.
+Teacher have to select date before signign as Completion date
+All user have to check a checkbox with text "I read and understood and signing the form"
 
-move
-Visa gradering från halvtidsbedömning
-after question and before selection
-add icon before text as visiblyty on and off
+Jeg har lest og forstått innholdet og signerer skjemaet.
+We cannot add this in to pop-up. it should be in the form in a proper place.
+Because in real app user will get a code via mail and write the code so his process can be confusing
 
-endterm form Sammanfattning page
-after date selection add new item 
-dagar: number input
-Check picture for the element
-'/Users/yavuzoncu/Desktop/Screenshot 2026-06-23 at 12.56.59.png'
 
-reading mode
-after "Bedömningskriterier Akutsjukvård" title
-display info as 
- Halvtidsbedömning : O, Slutbedömning : X
-
- when midterm is completed by last signature and endterm is opened, display a pop-up as "Explanation for demo.
-  halvtidsbedömning is completed and slutbedömning have been created."
-  Only close action
-  When close is pressed navigate to VFU-Information page
-
-Kontrollera bedömninget i förhandvisning uppe till höger innan du signerar
-
-Left side bad after "Avbryt bed..." add button as "Aktivera handlingsplan" (no action in prototype but for visualization).
-
-in form view, not in reading mode.
-dont use date and signature as floating action
-display is before dvider after form
-for all roles
-
-left sidebar items
-based on the user role
-If user has not filled mandatory input in the page, item background yellow
-If user filled mandatory input in the page, item background green
-
-instead of changing background color, use colored circles before items
-If user has not filled mandatory input in the page, circle red
-If user filled mandatory input in the page, circle green
-If user has not filled optional input in the page, circle yellow
-If user filled mandatory input in the page, circle green
-
-for student ad teacher roles only Signering av halvtidsbedömning item should be circle red or circle green. other item colors gray
-
-this prototype will be used in my saas app. So I need a functionality for admin users to edit the form content and all user facing text. 
-1-Add new button to topright before handledere button as "Template"
-2- When this button is pressed enter edit mode of the form.
-3-In edit mode user should be able to change all user facing text including left sidebar items,place holders, button texts etc. When text is clicked user will submit new text in a pop-up and save the new key. for left sidebar items instead of click display icon as 3 dots vertical for changing the text, because they are needed for changing the pages
-4-Right side bar items are coming from page elements and should not be affected.
-5- Lärandemål Akutsjukvård page, using template user should be able to add/remove questions or edit text
+after publish display selections with role colors without circle border.
+Display name chip of current user under selection aswell after publish
+If more than 1 user selected same display color green as selection color 
+For teacher name chip should be displayed immediately on selection

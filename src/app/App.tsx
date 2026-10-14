@@ -830,10 +830,11 @@ export default function App() {
               {[
                 { suffix: "lub", label: t("cat.lubHeading"), icon: null },
                 { suffix: "desc", label: t("cat.descHeading"), icon: null },
-                { suffix: "assess", label: t("cat.assessHeading"), icon: null },
+                { suffix: "assess", label: t("cat.assessHeading"), icon: activeRole === "student" ? "comment" : null },
                 { suffix: "score", label: t("cat.scoreHeading"), icon: "score" },
               ].map(({ suffix, label, icon }) => (
                 <a key={suffix} href="#" onClick={scrollTo(`${activeSection}-${suffix}`)} className="flex items-start gap-2 group">
+                  {icon === "comment" && rsIcon(plainTextLength(respFor(activeSection).student) > 0, true)}
                   {icon === "score" && rsIcon(roleScore(respFor(activeSection), activeRole) !== null, true)}
                   <span className="text-sm text-blue-600 group-hover:underline">{label}</span>
                 </a>

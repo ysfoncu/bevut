@@ -1,6 +1,8 @@
 /// <reference path="../vite-env.d.ts" />
 import {
+  ChevronDown,
   ChevronLeft,
+  X,
   ChevronRight,
   TrendingUp,
   AlertCircle,
@@ -9,6 +11,7 @@ import {
   Circle,
   Clock,
   Eye,
+  Info,
   Lock,
   Menu,
   MoreVertical,
@@ -18,7 +21,6 @@ import {
   XCircle,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
-import { AssessmentSummary } from "./components/AssessmentSummary";
 import { USER_GUIDE_HTML } from "./userGuide";
 import { RichText, RichTextEditor, plainTextLength } from "./components/RichText";
 import { RoleCommentField, formatShortDate, formatDate, formatDateTime } from "./components/RoleCommentField";
@@ -55,6 +57,31 @@ const initialCategories: Category[] = categoryTitles.map((title, i) => ({
   lubs: [1, 2, 3].map((n) => ({ id: i * 10 + n, number: `LUB ${i + 1}.${n}`, text: `Læringsutbytte ${n} for emnet (rediger i malmodus).` })),
   description: PLACEHOLDER_DESCRIPTION,
 }));
+// Mock info for each question page (prototype). Template mode can still edit, remove and add more.
+const mockInfos = (topic: string, example: string): { title: string; body: string }[] => [
+  {
+    title: "Om denne kategorien",
+    body: `<p>Denne kategorien handler om <b>${topic}</b>. Vurderingen skal vise hva studenten mestrer i praksis, ikke bare hva studenten kan beskrive.</p><ul><li>Se på hele praksisperioden, ikke enkelthendelser.</li><li>Begrunn måloppnåelsen med konkrete eksempler.</li></ul>`,
+  },
+  {
+    title: "Eksempler på observasjoner",
+    body: `<p>Eksempler som kan brukes i vurderingen:</p><ol><li>${example}</li><li>Studenten reflekterer over egen praksis og tar imot veiledning.</li><li>Studenten viser utvikling fra start til slutt i perioden.</li></ol>`,
+  },
+];
+const initialPageInfos: Record<string, { id: number; title: string; body: string }[]> = Object.fromEntries(
+  [
+    ["cat-1", "kommunikasjon, undervisning og veiledning", "Studenten tilpasser språk og informasjon til pasientens behov."],
+    ["cat-2", "sykepleieprosessen fra kartlegging til evaluering", "Studenten kartlegger, planlegger og evaluerer tiltak sammen med pasienten."],
+    ["cat-3", "samhandling og samarbeid med pasient, pårørende og kolleger", "Studenten bidrar aktivt i tverrfaglige møter og overleveringer."],
+    ["cat-4", "pasientsikkerhet, legemiddelhåndtering og smittevern", "Studenten følger rutiner for håndhygiene og legemiddelhåndtering."],
+    ["cat-5", "ledelse, helse- og omsorgsteknologi og kvalitetsarbeid", "Studenten bruker tilgjengelig teknologi og melder avvik ved behov."],
+    ["cat-6", "profesjonell kompetanse og yrkesetikk", "Studenten viser faglig forsvarlighet og tar ansvar for egne handlinger."],
+  ].map(([id, topic, ex], i) => [id, mockInfos(topic, ex).map((m, j) => ({ id: 100 + i * 10 + j, ...m }))])
+);
+const INFO_MIN_W = 280;
+const INFO_MAX_W = 760;
+const INFO_DEFAULT_W = 420;
+const clampInfoWidth = (w: number) => Math.min(INFO_MAX_W, Math.max(INFO_MIN_W, w));
 const emptyResponse: CategoryResponse = {
   student: "",
   supervisor: "",
@@ -69,11 +96,13 @@ interface TermFlow {
   // Silent system timestamps (ISO) of each signature, and the date the teacher picks as completion date.
   signedAt: Record<Role, string>;
   completionDate: string;
+  // Absence days ("Fraværsdager"), entered by the teacher; "" = not filled in (0 is a valid answer).
+  absenceDays: string;
   // Final assessment only: the teacher's decision "Praksisen blir vurdert som: Bestått / Ikke bestått".
   outcome: "pass" | "fail" | null;
   // Final assessment only: does the student need a transfer conversation ("Behov for overføringssamtale?")
   transferTalk: boolean;
-  // The teacher's last comments ("Eventuelle kommentarer"), rich-text HTML, in both terms.
+  // The teacher's last comments ("Oppsummering for midt-/sluttvurdering"), rich-text HTML, in both terms.
   finalComment: string;
   // ISO date each role published (student/supervisor: submitted, teacher: signed)
   publishedAt: Record<Role, string>;
@@ -83,6 +112,7 @@ const emptyFlow: TermFlow = {
   signed: { student: false, supervisor: false, teacher: false },
   signedAt: { student: "", supervisor: "", teacher: "" },
   completionDate: "",
+  absenceDays: "",
   outcome: null,
   transferTalk: false,
   finalComment: "",
@@ -118,7 +148,6 @@ const defaultTexts: Record<string, string> = {
   "cancel.body": "Læreren kan avbryte vurderingen med en begrunnelse i tre trinn. Dette er eksisterende funksjonalitet i andre skjemaer. Implementasjonen kan kontrolleres i ett av dem.",
   "btn.prev": "Forrige",
   "btn.next": "Neste",
-  "vfu.content": "",
   "vfu.studentName": "Studentnavn",
   "vfu.studentNumber": "Studentnummer",
   "vfu.placement": "Praksisplass",
@@ -200,7 +229,8 @@ const defaultTexts: Record<string, string> = {
   "summary.colTeacher": "Lærer – endelig vurdering",
   "summary.none": "Ikke vurdert",
   "final.heading": "Praksisen blir vurdert som:",
-  "final.commentsHeading": "Eventuelle kommentarer",
+  "final.commentsHeading.midterm": "Oppsummering for midtvurdering",
+  "final.commentsHeading.endterm": "Oppsummering for sluttvurdering",
   "final.transferTalk": "Behov for overføringssamtale?",
   "final.yes": "Ja",
   "final.no": "Nei",
@@ -240,6 +270,8 @@ const defaultTexts: Record<string, string> = {
   "flow.confirmCancel": "Avbryt",
   "flow.completionLabel": "Fullføringsdato",
   "flow.needCompletion": "Velg fullføringsdato.",
+  "flow.absenceLabel": "Fraværsdager",
+  "flow.needAbsence": "Fyll inn fraværsdager (0 eller flere).",
   "flow.consent": "Jeg har lest og forstått innholdet og signerer skjemaet.",
   "flow.consentRequired": "Du må bekrefte at du har lest og forstått skjemaet før du kan signere.",
   "flow.needConsent": "Bekreft at du har lest og forstått skjemaet.",
@@ -273,7 +305,7 @@ const defaultTexts: Record<string, string> = {
 };
 
 // Template texts that are edited with the rich text editor and stored as HTML.
-const richKeys = new Set(["vfu.content"]);
+const richKeys = new Set<string>();
 
 export default function App() {
   const [activeSection, setActiveSection] = useState("praksisinformasjon");
@@ -292,6 +324,13 @@ export default function App() {
   const [editing, setEditing] = useState<{ value: string; save: (v: string) => void; rich?: boolean } | null>(null);
   const [categories, setCategories] = useState<Category[]>(initialCategories);
   const nextLubId = useRef(1000);
+  // Info parts on the Praksisinformasjon page (title + rich-text body), added in template mode and shown collapsed to all roles.
+  const [infoParts, setInfoParts] = useState<{ id: number; title: string; body: string }[]>([]);
+  const nextInfoId = useRef(1000);
+  // Info for each question page (title + rich-text body), added in template mode, opened in a right-hand overlay.
+  const [pageInfos, setPageInfos] = useState<Record<string, { id: number; title: string; body: string }[]>>(initialPageInfos);
+  const [infoWidth, setInfoWidth] = useState(INFO_DEFAULT_W);
+  const [openInfo, setOpenInfo] = useState<{ title: string; body: string } | null>(null);
   // Responses per term and category: three free-text fields plus the 5-step score.
   const [responses, setResponses] = useState<Record<Term, Record<string, CategoryResponse>>>({ midterm: {}, endterm: {} });
 
@@ -435,6 +474,10 @@ export default function App() {
     );
   const removeLub = (catId: string, lubId: number) =>
     setCategories((prev) => prev.map((c) => (c.id === catId ? { ...c, lubs: c.lubs.filter((l) => l.id !== lubId) } : c)));
+  const patchInfoPart = (id: number, patch: { title?: string; body?: string }) =>
+    setInfoParts((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  const addInfoPart = () => setInfoParts((prev) => [...prev, { id: nextInfoId.current++, title: "Ny infodel", body: "" }]);
+  const removeInfoPart = (id: number) => setInfoParts((prev) => prev.filter((p) => p.id !== id));
   const likertLevels = [1, 2, 3, 4, 5].map((n) => ({ label: <E k={`lik.${n}.label`} />, description: <E k={`lik.${n}.desc`} /> }));
   const likertLabels = [1, 2, 3, 4, 5].map((n) => t(`lik.${n}.label`));
 
@@ -464,6 +507,8 @@ export default function App() {
   const commentMissing = (c: { id: string }) => activeRole === "student" && plainTextLength(respFor(c.id).student) === 0;
   const missingScores = categories.filter((c) => roleScore(respFor(c.id), activeRole) === null || commentMissing(c));
   const setCompletionDate = (v: string) => patchFlow(activeTerm, (f) => ({ ...f, completionDate: v }));
+  const setAbsenceDays = (v: string) => patchFlow(activeTerm, (f) => ({ ...f, absenceDays: v }));
+  const absenceInvalid = !/^\d+$/.test(cur.absenceDays ?? "");
   const setTransferTalk = (v: boolean) => {
     patchFlow(activeTerm, (f) => ({ ...f, transferTalk: v }));
     setConsent(false);
@@ -485,6 +530,7 @@ export default function App() {
     if (!cur.submitted.student) signBlockers.push(t("flow.needStudent"));
     if (!cur.submitted.supervisor) signBlockers.push(t("flow.needSupervisor"));
     if (!cur.completionDate) signBlockers.push(t("flow.needCompletion"));
+    if (absenceInvalid) signBlockers.push(t("flow.needAbsence"));
     if (needsOutcome && !cur.outcome) signBlockers.push(t("final.need"));
     if (missingScores.length > 0)
       signBlockers.push(t("flow.missingScores").replace("{n}", String(missingScores.length)).replace("{total}", String(categories.length)));
@@ -574,7 +620,9 @@ export default function App() {
     const target =
       teacherSign && !cur.completionDate
         ? "completionDate"
-        : teacherSign && needsOutcome && !cur.outcome
+        : teacherSign && absenceInvalid
+          ? "absenceDays"
+          : teacherSign && needsOutcome && !cur.outcome
           ? "outcome-pass"
           : kind === "sign" && !consent
             ? "signConsent"
@@ -635,6 +683,37 @@ export default function App() {
         <p id="completion-error" className="mt-1 flex items-start gap-1.5 text-sm text-red-700">
           <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" aria-hidden="true" />
           {t("flow.needCompletion")}
+        </p>
+      )}
+    </div>
+  );
+
+  const absenceBlock = (
+    <div>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+        <label htmlFor="absenceDays" className="text-sm font-medium text-gray-900 whitespace-nowrap">
+          <E k="flow.absenceLabel" /> <span className="font-normal text-gray-600">{t("flow.required")}</span>
+        </label>
+        <input
+          type="number"
+          id="absenceDays"
+          required
+          min={0}
+          step={1}
+          inputMode="numeric"
+          value={cur.absenceDays ?? ""}
+          aria-invalid={showValidationErrors && absenceInvalid}
+          aria-describedby={showValidationErrors && absenceInvalid ? "absence-error" : undefined}
+          onChange={(e) => setAbsenceDays(e.target.value)}
+          className={`w-full sm:w-44 px-3 py-2 min-h-11 sm:min-h-0 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            showValidationErrors && absenceInvalid ? "border-red-600 border-2" : "border-gray-500"
+          }`}
+        />
+      </div>
+      {showValidationErrors && absenceInvalid && (
+        <p id="absence-error" className="mt-1 flex items-start gap-1.5 text-sm text-red-700">
+          <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" aria-hidden="true" />
+          {t("flow.needAbsence")}
         </p>
       )}
     </div>
@@ -793,6 +872,78 @@ export default function App() {
   );
 
   // The in-page table of contents only appears where it has 3+ anchors (category pages, preview).
+  const isQuestionPage = categories.some((c) => c.id === activeSection);
+  const activeInfos = pageInfos[activeSection] ?? [];
+  const patchPageInfo = (pageId: string, id: number, patch: { title?: string; body?: string }) =>
+    setPageInfos((prev) => ({ ...prev, [pageId]: (prev[pageId] ?? []).map((p) => (p.id === id ? { ...p, ...patch } : p)) }));
+  const addPageInfo = (pageId: string) =>
+    setPageInfos((prev) => ({ ...prev, [pageId]: [...(prev[pageId] ?? []), { id: nextInfoId.current++, title: "Ny info", body: "" }] }));
+  const removePageInfo = (pageId: string, id: number) =>
+    setPageInfos((prev) => ({ ...prev, [pageId]: (prev[pageId] ?? []).filter((p) => p.id !== id) }));
+  useEffect(() => setOpenInfo(null), [activeSection, templateMode, readingMode]);
+  useEffect(() => {
+    if (!openInfo) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpenInfo(null);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [openInfo]);
+  // "Info" for the active question page: collapsed list in the right-hand bar; a click opens the body in an overlay.
+  const infoBlock =
+    isQuestionPage && !readingMode && (templateMode || activeInfos.length > 0) ? (
+      <div className="mb-8 pb-6 border-b border-gray-200">
+        {templateMode && <span className="block mb-3 text-sm font-bold text-gray-900 tracking-wide">Info</span>}
+        <ul className="space-y-2">
+          {activeInfos.map((p) =>
+            templateMode ? (
+              <li key={p.id} className="border border-dashed border-blue-400 rounded-lg p-2 space-y-2">
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setEditing({ value: p.title, save: (v) => patchPageInfo(activeSection, p.id, { title: v }) })}
+                    title="Klikk for å redigere tittelen"
+                    className="flex-1 min-w-0 text-left text-sm font-semibold text-gray-900 rounded px-1 outline-dashed outline-1 outline-blue-400 hover:bg-blue-100"
+                  >
+                    {p.title || <span className="text-blue-500 italic">Legg til tittel</span>}
+                  </button>
+                  <button
+                    onClick={() => removePageInfo(activeSection, p.id)}
+                    aria-label={`Fjern info ${p.title}`}
+                    className="p-1.5 text-red-700 hover:bg-red-50 rounded"
+                  >
+                    <Trash2 className="w-4 h-4" aria-hidden="true" />
+                  </button>
+                </div>
+                <div
+                  onClick={() => setEditing({ value: p.body, rich: true, save: (v) => patchPageInfo(activeSection, p.id, { body: v }) })}
+                  title="Klikk for å redigere teksten"
+                  className="cursor-pointer rounded px-2 py-1.5 min-h-[48px] text-sm outline-dashed outline-1 outline-blue-400 hover:bg-blue-100"
+                >
+                  {plainTextLength(p.body) > 0 ? <RichText html={p.body} /> : <span className="text-blue-500 italic">Klikk her for å legge til tekst</span>}
+                </div>
+              </li>
+            ) : (
+              <li key={p.id}>
+                <button
+                  onClick={() => setOpenInfo({ title: p.title, body: p.body })}
+                  aria-haspopup="dialog"
+                  className="flex items-center gap-2 min-h-11 text-left text-sm font-medium text-blue-700 hover:underline"
+                >
+                  <Info className="w-5 h-5 flex-shrink-0 text-blue-600" aria-hidden="true" />
+                  {p.title}
+                </button>
+              </li>
+            )
+          )}
+        </ul>
+        {templateMode && (
+          <button
+            onClick={() => addPageInfo(activeSection)}
+            className="mt-3 inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-blue-700 border border-blue-300 rounded-lg hover:bg-blue-50"
+          >
+            <Plus className="w-4 h-4" aria-hidden="true" /> Legg til info
+          </button>
+        )}
+      </div>
+    ) : null;
   const showToc = readingMode || categories.some((c) => c.id === activeSection);
   // Preview: the halvtid preview only contains halvtid data; the slutt preview contains both halvtid and slutt.
   const previewTerms: Term[] = activeTerm === "midterm" ? ["midterm"] : ["midterm", "endterm"];
@@ -1396,7 +1547,7 @@ export default function App() {
             {showToc && (
             <details className="lg:hidden mb-4 bg-white border border-gray-200 rounded-lg max-w-5xl mx-auto">
               <summary className="min-h-11 flex items-center px-4 text-sm font-semibold text-gray-900 cursor-pointer">{t("toc.jump")}</summary>
-              <div className="px-4 pb-4">{tocBody}</div>
+              <div className="px-4 pb-4">{infoBlock}{tocBody}</div>
             </details>
             )}
             {!readingMode && !templateMode && activeSection !== "signering" && (() => {
@@ -1481,7 +1632,12 @@ export default function App() {
                       </div>
                     ))}
                   </dl>
-                  <RichText html={t("vfu.content")} />
+                  {infoParts.map((p) => (
+                    <div key={p.id} className="mt-3">
+                      <p className="font-semibold">{p.title}</p>
+                      <RichText html={p.body} />
+                    </div>
+                  ))}
                 </div>
 
                 {/* Category sections — LUB, description, assessments and score per term */}
@@ -1556,7 +1712,7 @@ export default function App() {
                         </p>
                       )}
                       <div className="mb-3 text-sm">
-                        <span className="font-semibold">{t("final.commentsHeading")}</span>{" "}
+                        <span className="font-semibold">{t(`final.commentsHeading.${term}`)}</span>{" "}
                         {(activeRole === "teacher" || f.signed.teacher) && plainTextLength(f.finalComment ?? "") > 0 ? (
                           <RichText html={f.finalComment} className="inline-block align-top" />
                         ) : (
@@ -1585,20 +1741,72 @@ export default function App() {
 
                 {infoItems}
 
-                <div className="text-sm text-gray-700 leading-relaxed">
-                  {templateMode ? (
-                    <RichTextEditor
-                      value={t("vfu.content")}
-                      onChange={(v) => setTexts((prev) => ({ ...prev, "vfu.content": v }))}
-                    />
-                  ) : (
-                    <RichText html={t("vfu.content")} />
-                  )}
-                </div>
-
-                <div className="mt-8 pt-6 border-t border-gray-300 text-sm text-gray-700 leading-relaxed">
-                  <RichText html={USER_GUIDE_HTML} />
-                </div>
+                {/* Info parts: added in template mode, collapsed by default, visible to every role */}
+                {(
+                  <div className="space-y-3">
+                    {/* Built-in first info part: the user guide. Fixed content, not editable or removable. */}
+                    <details className="group border border-gray-300 rounded-lg bg-white">
+                      <summary className="flex items-center justify-between gap-2 px-4 py-3 min-h-11 cursor-pointer font-semibold text-gray-900 list-none [&::-webkit-details-marker]:hidden">
+                        Brukerveiledning
+                        <ChevronDown className="w-5 h-5 flex-shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
+                      </summary>
+                      <div className="px-4 pb-4 text-sm text-gray-700 leading-relaxed">
+                        <RichText html={USER_GUIDE_HTML.replace(/^<h2>.*?<\/h2>\n?/, "")} />
+                      </div>
+                    </details>
+                    {infoParts.map((p) =>
+                      templateMode ? (
+                        <div key={p.id} className="border border-dashed border-blue-400 rounded-lg p-3 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setEditing({ value: p.title, save: (v) => patchInfoPart(p.id, { title: v }) })}
+                              title="Klikk for å redigere tittelen"
+                              className="flex-1 text-left font-semibold text-gray-900 rounded px-1 outline-dashed outline-1 outline-blue-400 hover:bg-blue-100"
+                            >
+                              {p.title || <span className="text-blue-500 italic">Klikk her for å legge til tittel</span>}
+                            </button>
+                            <button
+                              onClick={() => removeInfoPart(p.id)}
+                              aria-label={`Fjern infodel ${p.title}`}
+                              className="p-2 text-red-700 hover:bg-red-50 rounded"
+                            >
+                              <Trash2 className="w-4 h-4" aria-hidden="true" />
+                            </button>
+                          </div>
+                          <div
+                            onClick={() => setEditing({ value: p.body, rich: true, save: (v) => patchInfoPart(p.id, { body: v }) })}
+                            title="Klikk for å redigere teksten"
+                            className="cursor-pointer rounded px-2 py-2 min-h-[64px] outline-dashed outline-1 outline-blue-400 hover:bg-blue-100"
+                          >
+                            {plainTextLength(p.body) > 0 ? (
+                              <RichText html={p.body} />
+                            ) : (
+                              <span className="text-blue-500 italic">Klikk her for å legge til tekst</span>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <details key={p.id} className="group border border-gray-300 rounded-lg bg-white">
+                          <summary className="flex items-center justify-between gap-2 px-4 py-3 min-h-11 cursor-pointer font-semibold text-gray-900 list-none [&::-webkit-details-marker]:hidden">
+                            {p.title}
+                            <ChevronDown className="w-5 h-5 flex-shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
+                          </summary>
+                          <div className="px-4 pb-4 text-sm text-gray-900">
+                            <RichText html={p.body} />
+                          </div>
+                        </details>
+                      )
+                    )}
+                    {templateMode && (
+                      <button
+                        onClick={addInfoPart}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-blue-700 border border-blue-300 rounded-lg hover:bg-blue-50"
+                      >
+                        <Plus className="w-4 h-4" aria-hidden="true" /> Legg til infodel
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             ) : categories.some((c) => c.id === activeSection) ? (
               (() => {
@@ -1644,27 +1852,55 @@ export default function App() {
                 </h1>
                 <p className="text-sm text-gray-600 mb-6"><E k="flow.panelHint" /></p>
 
+                {/* Absence days: entered by the teacher before signing, shown to everyone after the teacher has signed */}
                 <div className="mb-8">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4"><E k="sign.summaryTitle" /></h2>
-                  <AssessmentSummary
-                    caption={t("sign.summaryTitle")}
-                    categoryHeading={<E k="summary.category" />}
-                    emptyText={t("summary.none")}
-                    columns={[
-                      { key: "student", heading: <E k="summary.colStudent" /> },
-                      { key: "supervisor", heading: <E k="summary.colSupervisor" /> },
-                      { key: "teacher", heading: <E k="summary.colTeacher" /> },
-                    ]}
-                    rows={categories.map((c) => ({
-                      title: c.title,
-                      cells: (["student", "supervisor", "teacher"] as Role[]).map((r) => {
-                        const sc = respFor(c.id).scores[r];
-                        if (templateMode || !sc || !canSee(r, activeTerm)) return [];
-                        const p = personById(sc.by) ?? PEOPLE[r];
-                        return [{ label: t(`lik.${sc.level + 1}.label`), person: p.name, className: ROLE_STYLE[r].chip }];
-                      }),
-                    }))}
-                  />
+                  {!templateMode && activeRole === "teacher" && !cur.signed.teacher ? (
+                    absenceBlock
+                  ) : !templateMode && !cur.signed.teacher ? (
+                    <>
+                      <p className="text-sm font-semibold text-gray-900 mb-1.5"><E k="flow.absenceLabel" /></p>
+                      <span role="status" className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-sm font-medium ${ROLE_STYLE.teacher.chip}`}>
+                        <Clock className="w-4 h-4" aria-hidden="true" />
+                        {t("cat.awaiting")} {t("cat.roleTeacher")}
+                      </span>
+                    </>
+                  ) : (
+                    <p className="text-sm text-gray-900">
+                      <span className="font-semibold"><E k="flow.absenceLabel" />:</span> {templateMode ? "" : cur.absenceDays}
+                    </p>
+                  )}
+                </div>
+
+                {/* The teacher's last comments — both terms; editable until the teacher signs, then shown to everyone */}
+                <div className="mb-8">
+                  <p className="flex items-center gap-2 text-sm font-semibold text-gray-900 mb-1.5">
+                    <span aria-hidden="true" className={`w-2.5 h-2.5 rounded-full ${ROLE_STYLE.teacher.dot}`} />
+                    <E k={`final.commentsHeading.${activeTerm}`} />
+                  </p>
+                  {!templateMode && activeRole !== "teacher" && !cur.signed.teacher ? (
+                    <span role="status" className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-sm font-medium ${ROLE_STYLE.teacher.chip}`}>
+                      <Clock className="w-4 h-4" aria-hidden="true" />
+                      {t("cat.awaiting")} {t("cat.roleTeacher")}
+                    </span>
+                  ) : (
+                    <RoleCommentField
+                      id="finalComment"
+                      label={t(`final.commentsHeading.${activeTerm}`)}
+                      value={cur.finalComment ?? ""}
+                      editable={!templateMode && activeRole === "teacher" && !cur.signed.teacher}
+                      published={!templateMode && cur.signed.teacher}
+                      person={PEOPLE.teacher}
+                      badge={t("cat.badgeTeacher")}
+                      badgeClass={ROLE_STYLE.teacher.badgeText}
+                      publishedAt={cur.publishedAt.teacher}
+                      placeholder={t("cat.placeholder")}
+                      emptyText={t("cat.noComment")}
+                      saveLabel={t("cat.save")}
+                      cancelLabel={t("cat.cancel")}
+                      unsavedLabel={t("cat.unsaved")}
+                      onSave={(html) => patchFlow(activeTerm, (f) => ({ ...f, finalComment: html }))}
+                    />
+                  )}
                 </div>
 
                 {/* Workflow status */}
@@ -1712,38 +1948,6 @@ export default function App() {
                       <Lock className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
                       <E k="flow.reopenDisabled" />
                     </p>
-                  )}
-                </div>
-
-                {/* The teacher's last comments — both terms; editable until the teacher signs, then shown to everyone */}
-                <div className="mt-8">
-                  <p className="flex items-center gap-2 text-sm font-semibold text-gray-900 mb-1.5">
-                    <span aria-hidden="true" className={`w-2.5 h-2.5 rounded-full ${ROLE_STYLE.teacher.dot}`} />
-                    <E k="final.commentsHeading" />
-                  </p>
-                  {!templateMode && activeRole !== "teacher" && !cur.signed.teacher ? (
-                    <span role="status" className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-sm font-medium ${ROLE_STYLE.teacher.chip}`}>
-                      <Clock className="w-4 h-4" aria-hidden="true" />
-                      {t("cat.awaiting")} {t("cat.roleTeacher")}
-                    </span>
-                  ) : (
-                    <RoleCommentField
-                      id="finalComment"
-                      label={t("final.commentsHeading")}
-                      value={cur.finalComment ?? ""}
-                      editable={!templateMode && activeRole === "teacher" && !cur.signed.teacher}
-                      published={!templateMode && cur.signed.teacher}
-                      person={PEOPLE.teacher}
-                      badge={t("cat.badgeTeacher")}
-                      badgeClass={ROLE_STYLE.teacher.badgeText}
-                      publishedAt={cur.publishedAt.teacher}
-                      placeholder={t("cat.placeholder")}
-                      emptyText={t("cat.noComment")}
-                      saveLabel={t("cat.save")}
-                      cancelLabel={t("cat.cancel")}
-                      unsavedLabel={t("cat.unsaved")}
-                      onSave={(html) => patchFlow(activeTerm, (f) => ({ ...f, finalComment: html }))}
-                    />
                   )}
                 </div>
 
@@ -1943,6 +2147,7 @@ export default function App() {
         {/* Right Sidebar - Full Height */}
         {showToc && (
         <aside className="hidden lg:block w-80 bg-white overflow-auto border-l border-gray-200 p-8">
+          {infoBlock}
           <div className="mb-4">
             <span className="text-sm font-bold text-gray-900 tracking-wide">
               Innhold
@@ -1951,6 +2156,49 @@ export default function App() {
 
           {tocBody}
         </aside>
+        )}
+
+        {/* Info panel: right overlay without a backdrop, so the page stays readable and usable; the left edge can be dragged to resize */}
+        {openInfo && (
+          <aside
+            aria-label={openInfo.title}
+            style={{ "--info-w": `${infoWidth}px` } as React.CSSProperties}
+            className="fixed inset-y-0 right-0 z-40 w-[var(--info-w)] max-w-full flex bg-white border-l border-gray-300 shadow-2xl"
+          >
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Endre bredde på infopanelet"
+              aria-valuenow={infoWidth}
+              aria-valuemin={INFO_MIN_W}
+              aria-valuemax={INFO_MAX_W}
+              tabIndex={0}
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.currentTarget.setPointerCapture(e.pointerId);
+              }}
+              onPointerMove={(e) => {
+                if (e.currentTarget.hasPointerCapture(e.pointerId)) setInfoWidth(clampInfoWidth(window.innerWidth - e.clientX));
+              }}
+              onPointerUp={(e) => e.currentTarget.releasePointerCapture(e.pointerId)}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowLeft") setInfoWidth((w) => clampInfoWidth(w + 24));
+                if (e.key === "ArrowRight") setInfoWidth((w) => clampInfoWidth(w - 24));
+              }}
+              className="absolute left-0 top-0 h-full w-2 -ml-1 cursor-col-resize touch-none hover:bg-blue-200 focus:bg-blue-300 focus:outline-none z-10"
+            />
+            <div className="flex-1 min-w-0 overflow-auto p-6">
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">{openInfo.title}</h2>
+                <button onClick={() => setOpenInfo(null)} aria-label="Lukk" className="p-2 -m-2 rounded hover:bg-gray-100">
+                  <X className="w-5 h-5" aria-hidden="true" />
+                </button>
+              </div>
+              <div className="text-sm text-gray-900">
+                <RichText html={openInfo.body} />
+              </div>
+            </div>
+          </aside>
         )}
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Info, Plus, Trash2, ChevronDown, ChevronUp, Clock, Lock } from "lucide-react";
+import { Info, Plus, Trash2, ChevronDown, ChevronUp, Clock, Lock, AlertCircle } from "lucide-react";
 import { RichText, RichTextEditor, plainTextLength } from "./RichText";
 import { LikertScale, type LikertLevel } from "./LikertScale";
 import { RoleCommentField, formatShortDate } from "./RoleCommentField";
@@ -158,6 +158,8 @@ export function CategoryPage({
     (key === "student" && role === "student") || (key === "supervisor" && role === "supervisor" && ownScore === 0);
   const commentMissing = (key: "student" | "supervisor" | "teacher") =>
     showErrors && commentRequired(key) && !done[key as "student" | "supervisor"] && !templateMode && !locked && plainTextLength(response[key]) === 0;
+  // Supervisor chose Lav måloppnåelse but has not written the mandatory comment yet.
+  const lowScoreNeedsComment = role === "supervisor" && ownScore === 0 && ownEditable && plainTextLength(response.supervisor) === 0;
   const cid = category.id;
 
   const fields: { key: "student" | "supervisor" | "teacher"; labelKey: string; owner: Role }[] = [
@@ -378,6 +380,12 @@ export function CategoryPage({
           selectedTextClass={ROLE_STYLE[role].selectedText}
           markers={scoreMarkers}
         />
+        {lowScoreNeedsComment && (
+          <p role="alert" className="mt-4 flex items-start gap-2 text-sm font-medium text-red-700">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" aria-hidden="true" />
+            {t("cat.lowScoreComment")}
+          </p>
+        )}
         {/* Everyone who graded: avatar, name, role, date and the chosen level — the grader is always clear */}
         {gradedRoles.length > 0 && (
           <div className="mt-6 pt-5 border-t border-gray-200">

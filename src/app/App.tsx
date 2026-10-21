@@ -270,6 +270,7 @@ const defaultTexts: Record<string, string> = {
   "flow.missingScores": "Mangler måloppnåelse i {n} av {total} kategorier.",
   "flow.missingStudent": "Mangler kommentar eller måloppnåelse i {n} av {total} kategorier.",
   "cat.commentRequired": "Skriv en kommentar i egenvurderingen.",
+  "cat.lowScoreComment": "Kommentar er obligatorisk når du velger Lav måloppnåelse. Skriv en kommentar under «Praksisveileders vurdering».",
   "cat.commentRequiredSupervisor": "Skriv en kommentar når du gir lav måloppnåelse.",
   "flow.goToFirst": "Gå til første",
   "flow.waitTeacherSign": "Innsendt. Når læreren har signert, kan du signere.",

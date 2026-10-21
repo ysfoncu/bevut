@@ -87,6 +87,8 @@ interface CategoryPageProps {
   onSetScore: (level: number | null) => void;
   // Teacher only: grading is blocked until student and supervisor have submitted; selecting a step calls onGradingBlocked.
   gradingBlocked: boolean;
+  // The assessment process was cancelled: nothing can be edited or graded by anyone.
+  locked?: boolean;
   onGradingBlocked: () => void;
   // Template-mode callbacks
   onEditLub: (lubId: number) => void;
@@ -127,6 +129,7 @@ export function CategoryPage({
   onSaveText,
   onSetScore,
   gradingBlocked,
+  locked = false,
   onGradingBlocked,
   onEditLub,
   onEditLubNumber,
@@ -137,7 +140,7 @@ export function CategoryPage({
   const [expanded, setExpanded] = useState(false);
   const [midOpen, setMidOpen] = useState(false);
   const longDescription = plain(category.description).length > DESCRIPTION_COLLAPSE_AT;
-  const ownEditable = !templateMode && !done[role];
+  const ownEditable = !templateMode && !locked && !done[role];
   const ownScore = roleScore(response, role);
   // What the active role may see of another role's content:
   //  - teacher sees student/supervisor once they have submitted
@@ -154,7 +157,7 @@ export function CategoryPage({
   const commentRequired = (key: "student" | "supervisor" | "teacher") =>
     (key === "student" && role === "student") || (key === "supervisor" && role === "supervisor" && ownScore === 0);
   const commentMissing = (key: "student" | "supervisor" | "teacher") =>
-    showErrors && commentRequired(key) && !done[key as "student" | "supervisor"] && !templateMode && plainTextLength(response[key]) === 0;
+    showErrors && commentRequired(key) && !done[key as "student" | "supervisor"] && !templateMode && !locked && plainTextLength(response[key]) === 0;
   const cid = category.id;
 
   const fields: { key: "student" | "supervisor" | "teacher"; labelKey: string; owner: Role }[] = [
@@ -292,7 +295,7 @@ export function CategoryPage({
       <section id={`${cid}-assess`} aria-label={t("cat.assessHeading")} className={`${sectionCard} space-y-5`}>
         {fields.map(({ key, labelKey, owner }) => {
           const id = `${cid}-${key}`;
-          const editable = !templateMode && role === owner && !done[owner];
+          const editable = !templateMode && !locked && role === owner && !done[owner];
           const style = ROLE_STYLE[owner];
           // Another role's field that is not visible yet: show a chip instead of an empty box.
           const vis = templateMode ? "own" : visibility(owner);
@@ -335,7 +338,7 @@ export function CategoryPage({
                     saveLabel={t("cat.save")}
                     cancelLabel={t("cat.cancel")}
                     unsavedLabel={t("cat.unsaved")}
-                    invalid={key === "supervisor" && commentRequired(key) && !templateMode}
+                    invalid={key === "supervisor" && commentRequired(key) && !templateMode && !locked}
                     onSave={(html) => onSaveText(key, html)}
                   />
                   {commentMissing(key) && (
@@ -354,7 +357,7 @@ export function CategoryPage({
           {E("cat.scoreHeading")}
           {ownEditable && <span className="text-red-600" aria-hidden="true">*</span>}
         </h2>
-        {!templateMode && (
+        {!templateMode && !locked && (
           <p className="text-sm text-gray-600 mb-5 flex items-center gap-2">
             <span aria-hidden="true" className={`w-2.5 h-2.5 flex-shrink-0 rounded-full ${ROLE_STYLE[role].dot}`} />
             {role === "teacher" ? t("cat.scoreHintTeacher") : t("cat.scoreHintOwn")}

@@ -670,7 +670,7 @@ export default function App() {
 
   // Consent checkbox and (teacher) completion date: part of the form body, shown right above the dock.
   const outcomeText = (v: "pass" | "fail") => t(v === "pass" ? "final.pass" : "final.fail");
-  const consentDisabled = templateMode || (needsOutcome && activeRole === "teacher" && !cur.outcome);
+  const consentDisabled = templateMode || !!cancellation || (needsOutcome && activeRole === "teacher" && !cur.outcome);
   const consentLabel =
     needsOutcome && cur.outcome ? t("flow.consentWithOutcome").replace("{outcome}", outcomeText(cur.outcome)) : t("flow.consent");
   const consentBlock = (
@@ -707,6 +707,7 @@ export default function App() {
           id="completionDate"
           required
           value={cur.completionDate}
+          disabled={!!cancellation}
           aria-invalid={showValidationErrors && !cur.completionDate}
           aria-describedby={showValidationErrors && !cur.completionDate ? "completion-error" : undefined}
           onChange={(e) => setCompletionDate(e.target.value)}
@@ -738,6 +739,7 @@ export default function App() {
           step={1}
           inputMode="numeric"
           value={cur.absenceDays ?? ""}
+          disabled={!!cancellation}
           aria-invalid={showValidationErrors && absenceInvalid}
           aria-describedby={showValidationErrors && absenceInvalid ? "absence-error" : undefined}
           onChange={(e) => setAbsenceDays(e.target.value)}
@@ -897,8 +899,11 @@ export default function App() {
                   <E k="btn.avbryt" />
                 </button>}
                 <button
+                  disabled={!!cancellation}
                   onClick={() => { if (!templateMode) setInfoPopup("warn"); }}
-                  className="w-full mt-2 px-4 py-2 text-sm font-medium text-red-700 border border-red-600 rounded-lg hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2"
+                  className={`w-full px-4 py-2 text-sm font-medium border rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 ${
+                    cancellation ? "mt-0 text-gray-500 bg-gray-100 border-gray-300 cursor-not-allowed" : "mt-2 text-red-700 border-red-600 hover:bg-red-50"
+                  }`}
                 >
                   <E k="btn.handlingsplan" />
                 </button>
@@ -1090,7 +1095,7 @@ export default function App() {
   );
 
   // Praksisinformasjon items: automatic from the system except Praksisplass (typed in).
-  const placementEditable = !templateMode && activeRole !== "student";
+  const placementEditable = !templateMode && !cancellation && activeRole !== "student";
   const autoItem = (labelKey: string, value: string) => (
     <div>
       <dt className="text-sm font-medium text-gray-700 mb-1"><E k={labelKey} /></dt>
@@ -1140,7 +1145,7 @@ export default function App() {
     );
   const outcomeField = () => {
     const isTeacher = activeRole === "teacher";
-    const editable = isTeacher && !cur.signed.teacher && !templateMode;
+    const editable = isTeacher && !cur.signed.teacher && !templateMode && !cancellation;
     if (editable || templateMode) {
       return (
         <div className="space-y-5">
@@ -1669,7 +1674,7 @@ export default function App() {
                 </div>
               );
             })()}
-            {!templateMode && (() => {
+            {!templateMode && !cancellation && (() => {
               const missing: string[] = [];
               if (!cur.submitted.student) missing.push(t("cat.roleStudent"));
               if (!cur.submitted.supervisor) missing.push(t("cat.roleSupervisor"));
@@ -1920,6 +1925,7 @@ export default function App() {
                     me={me}
                     templateMode={templateMode}
                     done={doneNow}
+                    locked={!!cancellation}
                     response={respFor(cat.id)}
                     publishedAt={cur.publishedAt}
                     midterm={
@@ -1986,7 +1992,7 @@ export default function App() {
                       id="finalComment"
                       label={t(`final.commentsHeading.${activeTerm}`)}
                       value={cur.finalComment ?? ""}
-                      editable={!templateMode && activeRole === "teacher" && !cur.signed.teacher}
+                      editable={!templateMode && !cancellation && activeRole === "teacher" && !cur.signed.teacher}
                       published={!templateMode && cur.signed.teacher}
                       person={PEOPLE.teacher}
                       badge={t("cat.badgeTeacher")}
@@ -2191,16 +2197,20 @@ export default function App() {
             return (
               <div className="sticky bottom-0 z-20 shrink-0 bg-white/95 backdrop-blur border-t border-gray-300 shadow-[0_-1px_4px_rgba(0,0,0,0.06)] pb-[max(0.5rem,env(safe-area-inset-bottom))]">
                 <div role="region" aria-label="Neste steg" className="max-w-5xl mx-auto px-4 md:px-8 py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-                  <div className="order-1 basis-full md:order-2 md:basis-0 md:flex-1 min-w-0 flex items-start gap-2 text-sm text-gray-900">
-                    {icon}
-                    <span>
-                      {text}
-                      {link && (
-                        <button type="button" onClick={() => setActiveSection(link!.to)} className="ml-2 font-medium text-blue-700 underline">
-                          {link.label}
-                        </button>
-                      )}
-                    </span>
+                  <div className={`order-1 basis-full md:order-2 md:basis-0 md:flex-1 min-w-0 flex items-start gap-2 text-sm text-gray-900${cancellation ? " hidden md:block" : ""}`}>
+                    {!cancellation && (
+                      <>
+                        {icon}
+                        <span>
+                          {text}
+                          {link && (
+                            <button type="button" onClick={() => setActiveSection(link!.to)} className="ml-2 font-medium text-blue-700 underline">
+                              {link.label}
+                            </button>
+                          )}
+                        </span>
+                      </>
+                    )}
                   </div>
                   {sectionIndex > 0 && (
                     <button

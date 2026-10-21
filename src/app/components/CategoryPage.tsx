@@ -150,7 +150,11 @@ export function CategoryPage({
     return done[owner] ? "visible" : "awaiting";
   };
   const scoreMissing = showErrors && ownScore === null && ownEditable;
-  const commentMissing = showErrors && role === "student" && !done.student && !templateMode && plainTextLength(response.student) === 0;
+  // Student: always mandatory. Supervisor: mandatory when giving Lav måloppnåelse (level 0).
+  const commentRequired = (key: "student" | "supervisor" | "teacher") =>
+    (key === "student" && role === "student") || (key === "supervisor" && role === "supervisor" && ownScore === 0);
+  const commentMissing = (key: "student" | "supervisor" | "teacher") =>
+    showErrors && commentRequired(key) && !done[key as "student" | "supervisor"] && !templateMode && plainTextLength(response[key]) === 0;
   const cid = category.id;
 
   const fields: { key: "student" | "supervisor" | "teacher"; labelKey: string; owner: Role }[] = [
@@ -314,7 +318,7 @@ export function CategoryPage({
                   <p id={`${id}-label`} className={labelClass}>
                     {dot}
                     {E(labelKey)}
-                    {key === "student" && editable && <span className="text-red-600" aria-hidden="true">*</span>}
+                    {commentRequired(key) && editable && <span className="text-red-600" aria-hidden="true">*</span>}
                   </p>
                   <RoleCommentField
                     id={id}
@@ -331,10 +335,11 @@ export function CategoryPage({
                     saveLabel={t("cat.save")}
                     cancelLabel={t("cat.cancel")}
                     unsavedLabel={t("cat.unsaved")}
+                    invalid={key === "supervisor" && commentRequired(key) && !templateMode}
                     onSave={(html) => onSaveText(key, html)}
                   />
-                  {key === "student" && commentMissing && (
-                    <p role="alert" className="mt-2 text-sm text-red-700">{t("cat.commentRequired")}</p>
+                  {commentMissing(key) && (
+                    <p role="alert" className="mt-2 text-sm text-red-700">{t(key === "supervisor" ? "cat.commentRequiredSupervisor" : "cat.commentRequired")}</p>
                   )}
                 </>
               )}

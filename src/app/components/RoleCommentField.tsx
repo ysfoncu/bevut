@@ -42,6 +42,8 @@ interface RoleCommentFieldProps {
   saveLabel: string;
   cancelLabel: string;
   unsavedLabel: string;
+  // Mandatory and still empty: shown with a red border.
+  invalid?: boolean;
   onSave: (html: string) => void;
 }
 
@@ -63,6 +65,7 @@ export function RoleCommentField({
   saveLabel,
   cancelLabel,
   unsavedLabel,
+  invalid = false,
   onSave,
 }: RoleCommentFieldProps) {
   const [editing, setEditing] = useState(false);
@@ -148,6 +151,7 @@ export function RoleCommentField({
       role={editable ? "button" : undefined}
       tabIndex={editable ? 0 : undefined}
       aria-label={editable ? label : undefined}
+      aria-invalid={invalid && empty ? true : undefined}
       onClick={editable ? open : undefined}
       onKeyDown={
         editable
@@ -161,7 +165,7 @@ export function RoleCommentField({
       }
       className={`w-full min-h-[6.5rem] px-4 py-2 border rounded-lg text-sm ${
         editable
-          ? "border-gray-500 bg-white cursor-text focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          ? `${invalid && empty ? "border-red-600 border-2" : "border-gray-500"} bg-white cursor-text focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500`
           : "bg-gray-50 border-gray-400 cursor-default"
       }`}
     >

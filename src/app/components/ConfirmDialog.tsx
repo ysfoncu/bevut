@@ -7,11 +7,13 @@ interface ConfirmDialogProps {
   cancelLabel: string;
   onConfirm: () => void;
   onCancel: () => void;
+  // Red confirm button for destructive actions (e.g. cancelling the assessment process).
+  destructive?: boolean;
 }
 
 // An empty cancelLabel hides the cancel button (information-only popup).
 // Modal for irreversible actions (in the real app this is where the e-mailed code is entered): focus starts on Cancel, Tab is trapped, Esc closes, focus returns to the trigger.
-export function ConfirmDialog({ title, body, confirmLabel, cancelLabel, onConfirm, onCancel }: ConfirmDialogProps) {
+export function ConfirmDialog({ title, body, confirmLabel, cancelLabel, onConfirm, onCancel, destructive = false }: ConfirmDialogProps) {
   const box = useRef<HTMLDivElement>(null);
   const trigger = useRef<Element | null>(document.activeElement);
 
@@ -26,7 +28,7 @@ export function ConfirmDialog({ title, body, confirmLabel, cancelLabel, onConfir
       return;
     }
     if (e.key !== "Tab" || !box.current) return;
-    const items = Array.from(box.current.querySelectorAll<HTMLElement>('button, input, [href], [tabindex]:not([tabindex="-1"])'));
+    const items = Array.from(box.current.querySelectorAll<HTMLElement>('button, input, textarea, [href], [tabindex]:not([tabindex="-1"])'));
     if (items.length === 0) return;
     const first = items[0];
     const last = items[items.length - 1];
@@ -66,7 +68,7 @@ export function ConfirmDialog({ title, body, confirmLabel, cancelLabel, onConfir
             autoFocus={!cancelLabel}
             type="button"
             onClick={onConfirm}
-            className="px-4 py-2 text-sm font-semibold rounded-lg bg-blue-700 text-white hover:bg-blue-800"
+            className={`px-4 py-2 text-sm font-semibold rounded-lg text-white ${destructive ? "bg-red-700 hover:bg-red-800" : "bg-blue-700 hover:bg-blue-800"}`}
           >
             {confirmLabel}
           </button>

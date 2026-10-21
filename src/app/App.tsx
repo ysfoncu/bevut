@@ -145,7 +145,16 @@ const defaultTexts: Record<string, string> = {
   "warn.proto": "Denne funksjonen er ikke med i prototypen.",
   "warn.close": "Lukk",
   "cancel.title": "Avbryt vurderingsprosess",
-  "cancel.body": "Læreren kan avbryte vurderingen med en begrunnelse i tre trinn. Dette er eksisterende funksjonalitet i andre skjemaer. Implementasjonen kan kontrolleres i ett av dem.",
+  "cancel.body": "Når du avbryter vurderingsprosessen, kan ikke student, praksisveileder eller du sende inn eller signere mer i dette skjemaet. Begrunnelsen vises for alle på siden Praksisinformasjon.",
+  "cancel.reasonLabel": "Begrunnelse for avbrytelsen",
+  "cancel.reasonHint": "Obligatorisk. Skriv hvorfor vurderingsprosessen avbrytes.",
+  "cancel.reasonRequired": "Skriv en begrunnelse for å avbryte vurderingsprosessen.",
+  "cancel.confirm": "Avbryt vurderingsprosessen",
+  "cancel.back": "Tilbake",
+  "cancel.bannerTitle": "Vurderingsprosessen er avbrutt",
+  "cancel.bannerReason": "Begrunnelse",
+  "cancel.bannerBy": "Avbrutt av",
+  "cancel.blocker": "Vurderingsprosessen er avbrutt.",
   "btn.prev": "Forrige",
   "btn.next": "Neste",
   "vfu.studentName": "Studentnavn",
@@ -261,6 +270,7 @@ const defaultTexts: Record<string, string> = {
   "flow.missingScores": "Mangler måloppnåelse i {n} av {total} kategorier.",
   "flow.missingStudent": "Mangler kommentar eller måloppnåelse i {n} av {total} kategorier.",
   "cat.commentRequired": "Skriv en kommentar i egenvurderingen.",
+  "cat.commentRequiredSupervisor": "Skriv en kommentar når du gir lav måloppnåelse.",
   "flow.goToFirst": "Gå til første",
   "flow.waitTeacherSign": "Innsendt. Når læreren har signert, kan du signere.",
   "flow.confirmSubmitTitle": "Send inn skjemaet?",
@@ -341,7 +351,27 @@ export default function App() {
   // Confirmation dialog for the irreversible actions, and a short confirmation message afterwards.
   const [confirmAction, setConfirmAction] = useState<null | "submit" | "sign">(null);
   // Information-only popups for functions outside this prototype.
-  const [infoPopup, setInfoPopup] = useState<null | "warn" | "cancel">(null);
+  const [infoPopup, setInfoPopup] = useState<null | "warn">(null);
+  // The teacher can cancel the whole assessment process with a mandatory reason, shown on Praksisinformasjon.
+  const [cancellation, setCancellation] = useState<null | { reason: string; by: string; at: string }>(null);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelReasonError, setCancelReasonError] = useState(false);
+  const closeCancelDialog = () => {
+    setShowCancelDialog(false);
+    setCancelReason("");
+    setCancelReasonError(false);
+  };
+  const confirmCancellation = () => {
+    const reason = cancelReason.trim();
+    if (!reason) {
+      setCancelReasonError(true);
+      return;
+    }
+    setCancellation({ reason, by: me.name, at: new Date().toISOString() });
+    closeCancelDialog();
+    setActiveSection("praksisinformasjon");
+  };
   const [toast, setToast] = useState("");
   const [navOpen, setNavOpen] = useState(false);
   // Praksisplass is typed in manually (supervisor/teacher); the other items come from the system.
@@ -504,7 +534,13 @@ export default function App() {
   };
   // Categories where the active role has not yet given a Måloppnåelse score.
   // Student: the written self-assessment is mandatory in every category too, so a category is incomplete without a saved comment.
-  const commentMissing = (c: { id: string }) => activeRole === "student" && plainTextLength(respFor(c.id).student) === 0;
+  // Supervisor: a comment is mandatory when giving Lav måloppnåelse (level 0).
+  const commentMissing = (c: { id: string }) => {
+    const r = respFor(c.id);
+    if (activeRole === "student") return plainTextLength(r.student) === 0;
+    if (activeRole === "supervisor") return roleScore(r, "supervisor") === 0 && plainTextLength(r.supervisor) === 0;
+    return false;
+  };
   const missingScores = categories.filter((c) => roleScore(respFor(c.id), activeRole) === null || commentMissing(c));
   const setCompletionDate = (v: string) => patchFlow(activeTerm, (f) => ({ ...f, completionDate: v }));
   const setAbsenceDays = (v: string) => patchFlow(activeTerm, (f) => ({ ...f, absenceDays: v }));
@@ -521,11 +557,11 @@ export default function App() {
   const needsOutcome = activeTerm === "endterm";
 
   // What currently blocks the active role from its next step (submit / sign).
-  const submitBlockers = missingScores.flatMap((c) => [
-    ...(commentMissing(c) ? [`${t("cat.commentRequired").replace(/\.$/, "")}: ${c.title}`] : []),
+  const submitBlockers = [...(cancellation ? [t("cancel.blocker")] : []), ...missingScores.flatMap((c) => [
+    ...(commentMissing(c) ? [`${t(activeRole === "supervisor" ? "cat.commentRequiredSupervisor" : "cat.commentRequired").replace(/\.$/, "")}: ${c.title}`] : []),
     ...(roleScore(respFor(c.id), activeRole) === null ? [`${t("cat.scoreRequired").replace(/\.$/, "")}: ${c.title}`] : []),
-  ]);
-  const signBlockers: string[] = [];
+  ])];
+  const signBlockers: string[] = cancellation ? [t("cancel.blocker")] : [];
   if (activeRole === "teacher") {
     if (!cur.submitted.student) signBlockers.push(t("flow.needStudent"));
     if (!cur.submitted.supervisor) signBlockers.push(t("flow.needSupervisor"));
@@ -734,7 +770,7 @@ export default function App() {
         ready,
         statusText: ready
           ? t("flow.readySubmit")
-          : t(activeRole === "student" ? "flow.missingStudent" : "flow.missingScores").replace("{n}", String(missingScores.length)).replace("{total}", String(categories.length)),
+          : t(activeRole !== "teacher" ? "flow.missingStudent" : "flow.missingScores").replace("{n}", String(missingScores.length)).replace("{total}", String(categories.length)),
         goTo: missingScores[0]?.id,
         showButton: true,
       };
@@ -784,7 +820,7 @@ export default function App() {
       return ready ? "progress" : "todo";
     }
     const r = respFor(section);
-    if (roleScore(r, activeRole) !== null && !(activeRole === "student" && plainTextLength(r.student) === 0)) return "done";
+    if (roleScore(r, activeRole) !== null && !commentMissing({ id: section })) return "done";
     if (showValidationErrors) return "error";
     return plainTextLength(r[activeRole]) > 0 ? "progress" : "todo";
   };
@@ -854,12 +890,12 @@ export default function App() {
 
             {activeRole === "teacher" && (
               <div className="mt-4 pt-4 border-t border-gray-200">
-                <button
-                  onClick={() => { if (!templateMode) setInfoPopup("cancel"); }}
+                {!cancellation && <button
+                  onClick={() => { if (!templateMode) setShowCancelDialog(true); }}
                   className="w-full px-4 py-2 text-sm font-medium text-red-700 border border-red-600 rounded-lg hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2"
                 >
                   <E k="btn.avbryt" />
-                </button>
+                </button>}
                 <button
                   onClick={() => { if (!templateMode) setInfoPopup("warn"); }}
                   className="w-full mt-2 px-4 py-2 text-sm font-medium text-red-700 border border-red-600 rounded-lg hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2"
@@ -944,6 +980,25 @@ export default function App() {
         )}
       </div>
     ) : null;
+  // Shown at the top of Praksisinformasjon (and in the reading view) once the teacher has cancelled the process.
+  const cancellationBanner = cancellation ? (
+    <div role="alert" className="mb-6 rounded-lg border-2 border-red-600 bg-red-50 p-4 text-sm text-gray-900">
+      <p className="flex items-center gap-2 font-semibold text-red-800">
+        <AlertCircle className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
+        {t("cancel.bannerTitle")}
+      </p>
+      <dl className="mt-3 space-y-2">
+        <div>
+          <dt className="font-medium">{t("cancel.bannerReason")}</dt>
+          <dd className="mt-0.5 whitespace-pre-wrap break-words">{cancellation.reason}</dd>
+        </div>
+        <div>
+          <dt className="inline font-medium">{t("cancel.bannerBy")}: </dt>
+          <dd className="inline">{cancellation.by} ({t("cat.roleTeacher")}) – {formatDateTime(cancellation.at)}</dd>
+        </div>
+      </dl>
+    </div>
+  ) : null;
   const showToc = readingMode || categories.some((c) => c.id === activeSection);
   // Preview: the halvtid preview only contains halvtid data; the slutt preview contains both halvtid and slutt.
   const previewTerms: Term[] = activeTerm === "midterm" ? ["midterm"] : ["midterm", "endterm"];
@@ -1180,7 +1235,7 @@ export default function App() {
   // Slim "next step" hint shown on every page except Signering (which has the full action bar).
   const slimNext = (): { text: string; link?: string; goTo?: string; kind: "fill" | "go" | "wait" } | null => {
     if (templateMode || readingMode || cur.signed[activeRole]) return null;
-    const fill = { text: t(activeRole === "student" ? "flow.nextFillStudent" : "flow.nextFill").replace("{n}", String(missingScores.length)), link: t("flow.goToFirst"), goTo: missingScores[0]?.id, kind: "fill" as const };
+    const fill = { text: t(activeRole !== "teacher" ? "flow.nextFillStudent" : "flow.nextFill").replace("{n}", String(missingScores.length)), link: t("flow.goToFirst"), goTo: missingScores[0]?.id, kind: "fill" as const };
     const sign = { text: t("flow.nextSign"), link: t("flow.goToSigning"), goTo: "signering", kind: "go" as const };
     if (activeRole !== "teacher") {
       if (!cur.submitted[activeRole]) return missingScores.length ? fill : { text: t("flow.nextSubmit"), link: t("flow.goToSigning"), goTo: "signering", kind: "go" as const };
@@ -1201,7 +1256,7 @@ export default function App() {
       setAnnounce(
         missingScores.length === 0
           ? t("flow.allCategoriesDone")
-          : t(activeRole === "student" ? "flow.missingStudent" : "flow.missingScores").replace("{n}", String(missingScores.length)).replace("{total}", String(categories.length))
+          : t(activeRole !== "teacher" ? "flow.missingStudent" : "flow.missingScores").replace("{n}", String(missingScores.length)).replace("{total}", String(categories.length))
       );
     }
     prevMissing.current = missingScores.length;
@@ -1233,13 +1288,54 @@ export default function App() {
           </div>
         </div>
       )}
-      {/* "Gi varsel" / "Avbryt vurderingsprosess": information only — the real functions are outside this prototype. */}
-      {infoPopup && (
+      {/* "Avbryt vurderingsprosess": the teacher must give a reason, which is then shown on Praksisinformasjon. */}
+      {showCancelDialog && (
         <ConfirmDialog
-          title={t(infoPopup === "warn" ? "warn.title" : "cancel.title")}
+          destructive
+          title={t("cancel.title")}
           body={
             <>
-              <p>{t(infoPopup === "warn" ? "warn.body" : "cancel.body")}</p>
+              <p>{t("cancel.body")}</p>
+              <label htmlFor="cancel-reason" className="block pt-2 font-medium text-gray-900">
+                {t("cancel.reasonLabel")} <span className="text-red-600" aria-hidden="true">*</span>
+              </label>
+              <textarea
+                id="cancel-reason"
+                value={cancelReason}
+                onChange={(e) => {
+                  setCancelReason(e.target.value);
+                  if (e.target.value.trim()) setCancelReasonError(false);
+                }}
+                rows={4}
+                maxLength={1000}
+                required
+                aria-invalid={cancelReasonError}
+                aria-describedby={cancelReasonError ? "cancel-reason-error" : "cancel-reason-hint"}
+                className={`w-full px-3 py-2 text-sm text-gray-900 border rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 ${
+                  cancelReasonError ? "border-red-600 border-2" : "border-gray-500"
+                }`}
+              />
+              {cancelReasonError ? (
+                <p id="cancel-reason-error" role="alert" className="text-sm text-red-700">{t("cancel.reasonRequired")}</p>
+              ) : (
+                <p id="cancel-reason-hint" className="text-xs text-gray-600">{t("cancel.reasonHint")}</p>
+              )}
+            </>
+          }
+          confirmLabel={t("cancel.confirm")}
+          cancelLabel={t("cancel.back")}
+          onConfirm={confirmCancellation}
+          onCancel={closeCancelDialog}
+        />
+      )}
+
+      {/* "Gi varsel": information only — the real function is outside this prototype. */}
+      {infoPopup && (
+        <ConfirmDialog
+          title={t("warn.title")}
+          body={
+            <>
+              <p>{t("warn.body")}</p>
               <p>{t("warn.proto")}</p>
             </>
           }
@@ -1544,10 +1640,10 @@ export default function App() {
         <main ref={mainScrollRef} className="flex-1 min-w-0 overflow-auto bg-gray-50 relative scroll-pb-48 flex flex-col">
           <div className="flex-1 px-4 py-5 md:px-8 md:py-8">
             {/* Below lg the right-hand table of contents is a collapsed "Hopp til" disclosure */}
-            {showToc && (
+            {showToc && (readingMode || infoBlock) && (
             <details className="lg:hidden mb-4 bg-white border border-gray-200 rounded-lg max-w-5xl mx-auto">
               <summary className="min-h-11 flex items-center px-4 text-sm font-semibold text-gray-900 cursor-pointer">{t("toc.jump")}</summary>
-              <div className="px-4 pb-4">{infoBlock}{tocBody}</div>
+              <div className="px-4 pb-4">{infoBlock}{readingMode && tocBody}</div>
             </details>
             )}
             {!readingMode && !templateMode && activeSection !== "signering" && (() => {
@@ -1618,6 +1714,7 @@ export default function App() {
                 {/* Praksisinformasjon Section */}
                 <div id="rm-praksisinformasjon" className="mb-8 text-sm">
                   <h2 className="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b-2 border-gray-300">{t("nav.vfu")}</h2>
+                  {cancellationBanner}
                   <dl className="mb-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
                     {[
                       ["vfu.studentName", SYSTEM_INFO.studentName],
@@ -1738,6 +1835,8 @@ export default function App() {
               /* Praksisinformasjon Form */
               <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 md:p-8">
                 <h1 className="text-2xl font-bold text-gray-900 mb-6 pb-2 border-b-2 border-gray-300"><E k="nav.vfu" /></h1>
+
+                {cancellationBanner}
 
                 {infoItems}
 
@@ -2145,16 +2244,20 @@ export default function App() {
         </main>
 
         {/* Right Sidebar - Full Height */}
-        {showToc && (
+        {showToc && (readingMode || infoBlock) && (
         <aside className="hidden lg:block w-80 bg-white overflow-auto border-l border-gray-200 p-8">
           {infoBlock}
-          <div className="mb-4">
-            <span className="text-sm font-bold text-gray-900 tracking-wide">
-              Innhold
-            </span>
-          </div>
+          {readingMode && (
+            <>
+              <div className="mb-4">
+                <span className="text-sm font-bold text-gray-900 tracking-wide">
+                  Innhold
+                </span>
+              </div>
 
-          {tocBody}
+              {tocBody}
+            </>
+          )}
         </aside>
         )}
 

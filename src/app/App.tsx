@@ -51,10 +51,21 @@ const categoryTitles = [
   "Ledelse, helse- og omsorgsteknologi og kvalitetsarbeid",
   "Profesjonell kompetanse",
 ];
+// Læringsutbytter (LUB) per category, as rich-text HTML (same order as categoryTitles).
+const placeholderLub = (cat: number) =>
+  `<ul>${[1, 2, 3].map((n) => `<li><b>LUB ${cat}.${n}</b> Læringsutbytte ${n} for emnet (rediger i malmodus).</li>`).join("")}</ul>`;
+const categoryLubs: string[] = [
+  placeholderLub(1),
+  placeholderLub(2),
+  placeholderLub(3),
+  placeholderLub(4),
+  placeholderLub(5),
+  "<p>Profesjonell kompetanse innebærer å utøve sykepleie på en faglig forsvarlig, etisk bevisst og ansvarlig måte. Det handler om å kombinere kunnskap, praktiske ferdigheter og holdninger slik at pasienter, pårørende og medarbeidere møtes med respekt, omsorg, trygghet og høy kvalitet. Profesjonell kompetanse viser seg blant annet gjennom god kommunikasjon og samarbeid, empati, ansvarlighet, tilpasningsevne, kritisk tenkning, etisk refleksjon og evne til å ivareta pasientsikkerhet i tråd med yrkesetiske retningslinjer og lovverk.</p>",
+];
 const initialCategories: Category[] = categoryTitles.map((title, i) => ({
   id: `cat-${i + 1}`,
   title,
-  lubs: [1, 2, 3].map((n) => ({ id: i * 10 + n, number: `LUB ${i + 1}.${n}`, text: `Læringsutbytte ${n} for emnet (rediger i malmodus).` })),
+  lub: categoryLubs[i],
   description: PLACEHOLDER_DESCRIPTION,
 }));
 // Mock info for each question page (prototype). Template mode can still edit, remove and add more.
@@ -334,7 +345,6 @@ export default function App() {
   const [texts, setTexts] = useState<Record<string, string>>(defaultTexts);
   const [editing, setEditing] = useState<{ value: string; save: (v: string) => void; rich?: boolean } | null>(null);
   const [categories, setCategories] = useState<Category[]>(initialCategories);
-  const nextLubId = useRef(1000);
   // Info parts on the Praksisinformasjon page (title + rich-text body), added in template mode and shown collapsed to all roles.
   const [infoParts, setInfoParts] = useState<{ id: number; title: string; body: string }[]>([]);
   const nextInfoId = useRef(1000);
@@ -475,36 +485,6 @@ export default function App() {
     if (!cat) return;
     setEditing({ value: cat.title, save: (v) => updateCategory(catId, { title: v }) });
   };
-  const editLub = (catId: string, lubId: number) => {
-    const lub = categories.find((c) => c.id === catId)?.lubs.find((l) => l.id === lubId);
-    if (!lub) return;
-    setEditing({
-      value: lub.text,
-      save: (v) =>
-        setCategories((prev) =>
-          prev.map((c) => (c.id === catId ? { ...c, lubs: c.lubs.map((l) => (l.id === lubId ? { ...l, text: v } : l)) } : c))
-        ),
-    });
-  };
-  const editLubNumber = (catId: string, lubId: number) => {
-    const lub = categories.find((c) => c.id === catId)?.lubs.find((l) => l.id === lubId);
-    if (!lub) return;
-    setEditing({
-      value: lub.number,
-      save: (v) =>
-        setCategories((prev) =>
-          prev.map((c) => (c.id === catId ? { ...c, lubs: c.lubs.map((l) => (l.id === lubId ? { ...l, number: v } : l)) } : c))
-        ),
-    });
-  };
-  const addLub = (catId: string) =>
-    setCategories((prev) =>
-      prev.map((c) =>
-        c.id === catId ? { ...c, lubs: [...c.lubs, { id: nextLubId.current++, number: "", text: "Nytt læringsutbytte" }] } : c
-      )
-    );
-  const removeLub = (catId: string, lubId: number) =>
-    setCategories((prev) => prev.map((c) => (c.id === catId ? { ...c, lubs: c.lubs.filter((l) => l.id !== lubId) } : c)));
   const patchInfoPart = (id: number, patch: { title?: string; body?: string }) =>
     setInfoParts((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   const addInfoPart = () => setInfoParts((prev) => [...prev, { id: nextInfoId.current++, title: "Ny infodel", body: "" }]);
@@ -1040,7 +1020,6 @@ export default function App() {
           ) : categories.some((c) => c.id === activeSection) ? (
             <div className="space-y-3">
               {[
-                { suffix: "lub", label: t("cat.lubHeading"), icon: null },
                 { suffix: "desc", label: t("cat.descHeading"), icon: null },
                 { suffix: "assess", label: t("cat.assessHeading"), icon: activeRole === "student" ? "comment" : null },
                 { suffix: "score", label: t("cat.scoreHeading"), icon: "score" },
@@ -1519,7 +1498,7 @@ export default function App() {
       {templateMode && (
         <div className="bg-purple-50 border-b border-purple-200 px-6 py-2 text-sm text-purple-800">
           Malmodus: klikk på en markert tekst for å redigere den. Bruk ⋮ i venstremenyen og ved fanene for å redigere
-          navigasjonstekstene. Læringsutbytter (nummer og tekst) legges til, redigeres og fjernes på hver hovedkategori-side.
+          navigasjonstekstene. Læringsutbytter skrives som fri tekst (rik tekst) på hver hovedkategori-side.
         </div>
       )}
 
@@ -1747,11 +1726,7 @@ export default function App() {
                 {categories.map((c) => (
                   <div key={c.id} id={`rm-${c.id}`} className="mb-8 text-sm">
                     <h2 className="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b-2 border-gray-300">{c.title}</h2>
-                    <ul className="mb-3 space-y-1">
-                      {c.lubs.map((l) => (
-                        <li key={l.id}><span className="font-semibold text-blue-700 mr-2">{l.number}</span>{l.text}</li>
-                      ))}
-                    </ul>
+                    {plainTextLength(c.lub) > 0 && <div className="mb-3"><RichText html={c.lub} /></div>}
                     <div className="mb-3 text-gray-700"><RichText html={c.description} /></div>
                     {previewTerms.map((term) => {
                       if (term === "endterm" && !endtermCreated) return null;
@@ -1942,10 +1917,7 @@ export default function App() {
                     E={(k) => <E k={k} />}
                     onSaveText={(key, html) => saveText(cat.id, key, html)}
                     onSetScore={(level) => setMyScore(cat.id, level)}
-                    onEditLub={(lubId) => editLub(cat.id, lubId)}
-                    onEditLubNumber={(lubId) => editLubNumber(cat.id, lubId)}
-                    onAddLub={() => addLub(cat.id)}
-                    onRemoveLub={(lubId) => removeLub(cat.id, lubId)}
+                    onChangeLub={(html) => updateCategory(cat.id, { lub: html })}
                     onChangeDescription={(html) => updateCategory(cat.id, { description: html })}
                   />
                 );

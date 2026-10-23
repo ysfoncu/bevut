@@ -4,17 +4,11 @@ import { RichText, RichTextEditor, plainTextLength } from "./RichText";
 import { LikertScale, type LikertLevel } from "./LikertScale";
 import { RoleCommentField, formatShortDate } from "./RoleCommentField";
 
-export interface Lub {
-  id: number;
-  // Entered manually in template mode; LUB numbers do not always follow a running order.
-  number: string;
-  text: string;
-}
-
 export interface Category {
   id: string;
   title: string;
-  lubs: Lub[];
+  // Læringsutbytter (LUB): one rich-text block without a heading (numbers and text are typed in template mode), stored as sanitised HTML.
+  lub: string;
   // Operationalisation of the LUBs, stored as sanitised rich-text HTML.
   description: string;
 }
@@ -91,10 +85,7 @@ interface CategoryPageProps {
   locked?: boolean;
   onGradingBlocked: () => void;
   // Template-mode callbacks
-  onEditLub: (lubId: number) => void;
-  onEditLubNumber: (lubId: number) => void;
-  onAddLub: () => void;
-  onRemoveLub: (lubId: number) => void;
+  onChangeLub: (html: string) => void;
   onChangeDescription: (html: string) => void;
 }
 
@@ -131,10 +122,7 @@ export function CategoryPage({
   gradingBlocked,
   locked = false,
   onGradingBlocked,
-  onEditLub,
-  onEditLubNumber,
-  onAddLub,
-  onRemoveLub,
+  onChangeLub,
   onChangeDescription,
 }: CategoryPageProps) {
   const [expanded, setExpanded] = useState(false);
@@ -205,58 +193,18 @@ export function CategoryPage({
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">{category.title}</h1>
 
-      {/* A. Læringsutbytter — always visible (universal design) */}
-      <section id={`${cid}-lub`} aria-labelledby={`${cid}-lub-h`} className={sectionCard}>
-        <h2 id={`${cid}-lub-h`} className="text-lg font-semibold text-gray-900 mb-4">{E("cat.lubHeading")}</h2>
-        <ol className="space-y-3">
-          {category.lubs.map((lub) => (
-            <li key={lub.id} className="flex items-start gap-3">
-              {templateMode ? (
-                <>
-                  <span
-                    onClick={() => onEditLubNumber(lub.id)}
-                    title="Klikk for å angi LUB-nummer"
-                    className="flex-shrink-0 w-24 text-sm font-semibold text-blue-700 cursor-pointer rounded px-1 pt-0.5 outline-dashed outline-1 outline-blue-400 hover:bg-blue-100"
-                  >
-                    {lub.number || <span className="font-normal italic text-blue-500">LUB-nr</span>}
-                  </span>
-                  <p
-                    onClick={() => onEditLub(lub.id)}
-                    title="Klikk for å redigere teksten"
-                    className="flex-1 text-sm text-gray-900 cursor-pointer rounded px-1 outline-dashed outline-1 outline-blue-400 hover:bg-blue-100"
-                  >
-                    {lub.text}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => onRemoveLub(lub.id)}
-                    aria-label="Ta bort læringsutbytte"
-                    title="Ta bort læringsutbytte"
-                    className="p-1.5 text-red-500 border border-red-200 rounded-lg hover:bg-red-50"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </>
-              ) : (
-                <>
-                  <span className="flex-shrink-0 min-w-14 text-sm font-semibold text-blue-700 pt-0.5">{lub.number}</span>
-                  <p className="flex-1 text-sm text-gray-900">{lub.text}</p>
-                </>
-              )}
-            </li>
-          ))}
-        </ol>
-        {templateMode && (
-          <button
-            type="button"
-            onClick={onAddLub}
-            className="mt-4 w-full py-2.5 border-2 border-dashed border-blue-400 rounded-lg text-blue-600 text-sm font-semibold hover:bg-blue-50 flex items-center justify-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Legg til læringsutbytte
-          </button>
-        )}
-      </section>
+      {/* A. Læringsutbytter — one rich-text block, no visible heading; always visible (universal design) */}
+      {(templateMode || plainTextLength(category.lub) > 0) && (
+        <section id={`${cid}-lub`} aria-label={t("cat.lubHeading")} className={sectionCard}>
+          {templateMode ? (
+            <RichTextEditor value={category.lub} onChange={onChangeLub} ariaLabel={t("cat.lubHeading")} />
+          ) : (
+            <div className="text-sm text-gray-900 leading-relaxed">
+              <RichText html={category.lub} />
+            </div>
+          )}
+        </section>
+      )}
 
       {/* B. Beskrivelse av læringsutbyttene */}
       <section id={`${cid}-desc`} aria-labelledby={`${cid}-desc-h`} className={`${sectionCard} bg-blue-50/40 border-blue-200`}>

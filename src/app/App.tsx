@@ -53,7 +53,7 @@ const categoryTitles = [
 ];
 // Læringsutbytter (LUB) per category, as rich-text HTML (same order as categoryTitles).
 const placeholderLub = (cat: number) =>
-  `<ul>${[1, 2, 3].map((n) => `<li><b>LUB ${cat}.${n}</b> Læringsutbytte ${n} for emnet (rediger i malmodus).</li>`).join("")}</ul>`;
+  `<h2><b>Læringsutbytter (LUB)</b></h2><ul>${[1, 2, 3].map((n) => `<li><b>LUB ${cat}.${n}</b> Læringsutbytte ${n} for emnet (rediger i malmodus).</li>`).join("")}</ul>`;
 const categoryLubs: string[] = [
   placeholderLub(1),
   placeholderLub(2),

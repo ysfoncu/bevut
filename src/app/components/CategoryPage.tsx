@@ -273,6 +273,11 @@ export function CategoryPage({
                     {E(labelKey)}
                     {commentRequired(key) && editable && <span className="text-red-600" aria-hidden="true">*</span>}
                   </p>
+                  {templateMode && (
+                    <p className="mb-1.5 text-xs text-gray-600">
+                      Plassholder: <span className="italic">{E(`cat.ph.${cid}.${owner}`)}</span>
+                    </p>
+                  )}
                   <RoleCommentField
                     id={id}
                     label={t(labelKey)}
@@ -283,7 +288,7 @@ export function CategoryPage({
                     badge={t(style.badgeKey)}
                     badgeClass={style.badgeText}
                     publishedAt={publishedAt[owner]}
-                    placeholder={t("cat.placeholder")}
+                    placeholder={t(`cat.ph.${cid}.${owner}`)}
                     emptyText={t("cat.noComment")}
                     saveLabel={t("cat.save")}
                     cancelLabel={t("cat.cancel")}

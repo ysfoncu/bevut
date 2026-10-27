@@ -326,6 +326,22 @@ const defaultTexts: Record<string, string> = {
   "summary.legendNote": "Måloppnåelse per rolle",
 };
 
+// Placeholder shown in each comment field per category and role (key: cat.ph.<categoryId>.<role>), editable in template mode.
+// Student and teacher keep the generic text; the supervisor gets a prompt specific to each category.
+const supervisorPlaceholders = [
+  "Beskriv hvordan studenten kommuniserer med pasienter, pårørende og kolleger, og hvordan studenten underviser og veileder. Gi konkrete eksempler.",
+  "Beskriv hvordan studenten kartlegger, planlegger, utfører og evaluerer sykepleie. Gi konkrete eksempler.",
+  "Beskriv hvordan studenten samhandler og samarbeider med pasient, team og andre faggrupper. Gi konkrete eksempler.",
+  "Beskriv hvordan studenten ivaretar pasientsikkerhet, håndterer legemidler og forebygger smitte. Gi konkrete eksempler.",
+  "Beskriv hvordan studenten bruker helse- og omsorgsteknologi og bidrar til kvalitetsarbeid og ledelse. Gi konkrete eksempler.",
+  "Beskriv studentens faglige, etiske og ansvarlige utøvelse av sykepleie. Gi konkrete eksempler.",
+];
+categoryTitles.forEach((_, i) => {
+  defaultTexts[`cat.ph.cat-${i + 1}.student`] = defaultTexts["cat.placeholder"];
+  defaultTexts[`cat.ph.cat-${i + 1}.supervisor`] = supervisorPlaceholders[i];
+  defaultTexts[`cat.ph.cat-${i + 1}.teacher`] = defaultTexts["cat.placeholder"];
+});
+
 // Template texts that are edited with the rich text editor and stored as HTML.
 const richKeys = new Set<string>();
 
